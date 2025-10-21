@@ -323,7 +323,6 @@ interface AthletePatch {
 - Accept header determines representation:
   - `application/json` → `Athlete` (default, base)
   - `application/vnd.api.{resource}.detail+json` → `AthleteDetail`
-  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary`
 - **Response**: 200 OK
 - **Errors**: 404 (not found), 406 (unsupported Accept)
 
@@ -679,7 +678,7 @@ export class ApiClient {
     return response.json();
   }
 
-  // Примеры методов
+  // Example methods
   async getAthletes(params: { page?: number; limit?: number }, acceptType: MediaType = MediaTypes.ATHLETE_LIST) {
     const query = new URLSearchParams(params as any).toString();
     return this.request<PaginatedResponse<AthleteListItem>>(`/v1/athletes?${query}`, {}, acceptType);
@@ -779,10 +778,13 @@ public final class MediaTypes {
 }
 ```
 
-#### Content Negotiation Helper
+#### Content Negotiation Helper (Optional)
 
 ```java
 // src/main/java/com/example/api/util/ContentNegotiationHelper.java
+// This helper is optional - Spring Boot handles content negotiation automatically
+// Use this only if you need custom logic beyond Spring's built-in support
+
 package com.example.api.util;
 
 import com.example.api.constants.MediaTypes;
@@ -838,8 +840,6 @@ package com.example.api.controller;
 import com.example.api.constants.MediaTypes;
 import com.example.api.dto.*;
 import com.example.api.service.AthleteService;
-import com.example.api.util.ContentNegotiationHelper;
-import com.example.api.util.ContentNegotiationHelper.RepresentationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
