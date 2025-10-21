@@ -3,22 +3,25 @@ info:
   title: Sports Management System API
   version: 1.0.0
   description: |
-    Professional REST API for sports management system with content negotiation via Accept headers.
+    REST API for sports management system with content negotiation via Accept headers.
     
     ## Design Principles
     
     ### Content Negotiation
     Uses Accept headers to control resource representations:
-    - `application/vnd.api.{resource}.full+json` - Complete data with all fields
+    - `application/json` - Base normalized representation (default)
+    - `application/vnd.api.{resource}.list+json` - List representation with denormalized data (for tables)
+    - `application/vnd.api.{resource}.lookup+json` - Lookup representation (id + name for dropdowns)
     - `application/vnd.api.{resource}.detail+json` - Extended data without readonly fields
     - `application/vnd.api.{resource}.summary+json` - Minimal data (id, name, email)
-    - `application/json` - Fallback to full representation
     
     ### Schema Naming Conventions
     Follows industry-standard DTO naming patterns:
-    - **{Resource}** - Full response model (GET)
-    - **{Resource}Summary** - Minimal response model (GET with summary Accept)
-    - **{Resource}Detail** - Extended response model (GET with detail Accept)
+    - **{Resource}** - Base normalized response (GET with application/json)
+    - **{Resource}ListItem** - List response with denormalized data (GET with list Accept)
+    - **{Resource}Lookup** - Lookup response for dropdowns (GET with lookup Accept)
+    - **{Resource}Detail** - Extended response without readonly fields (GET with detail Accept)
+    - **{Resource}Summary** - Minimal response (GET with summary Accept)
     - **{Resource}Create** - Request model for resource creation (POST)
     - **{Resource}Update** - Request model for full replacement (PUT)
     - **{Resource}Patch** - Request model for partial update (PATCH)
@@ -45,10 +48,6 @@ tags:
     description: Operations related to athlete management
   - name: Coaches
     description: Operations related to coach management
-  - name: Training Sessions
-    description: Operations related to training session management
-  - name: Subscriptions
-    description: Operations related to subscription management
 
 paths:
   /athletes:
@@ -99,25 +98,23 @@ paths:
           in: header
           description: |
             Media type for response representation:
-            - `application/vnd.api.athlete.full+json` - Complete data (default)
-            - `application/vnd.api.athlete.detail+json` - Extended without readonly
-            - `application/vnd.api.athlete.summary+json` - Minimal data
-            - `application/json` - Fallback to full
+            - `application/json` - Base normalized representation (default)
+            - `application/vnd.api.athlete.list+json` - List with denormalized data (includes coachName)
+            - `application/vnd.api.athlete.lookup+json` - Lookup (id + name only)
           required: false
           schema:
             type: string
             enum:
-              - application/vnd.api.athlete.full+json
-              - application/vnd.api.athlete.detail+json
-              - application/vnd.api.athlete.summary+json
               - application/json
-            default: application/vnd.api.athlete.full+json
+              - application/vnd.api.athlete.list+json
+              - application/vnd.api.athlete.lookup+json
+            default: application/json
       responses:
         '200':
           description: Successful response with athletes list
           content:
-            # Full representation (default)
-            application/vnd.api.athlete.full+json:
+            # Base representation (default)
+            application/json:
               schema:
                 type: object
                 required:
@@ -131,8 +128,8 @@ paths:
                   pagination:
                     $ref: '#/components/schemas/Pagination'
               examples:
-                full:
-                  summary: Full representation
+                base:
+                  summary: Base normalized representation
                   value:
                     data:
                       - id: "550e8400-e29b-41d4-a716-446655440000"
@@ -149,8 +146,8 @@ paths:
                       total: 45
                       totalPages: 3
             
-            # Detail representation
-            application/vnd.api.athlete.detail+json:
+            # List representation (denormalized for tables)
+            application/vnd.api.athlete.list+json:
               schema:
                 type: object
                 required:
@@ -160,27 +157,29 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/AthleteDetail'
+                      $ref: '#/components/schemas/AthleteListItem'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
               examples:
-                detail:
-                  summary: Detail representation
+                list:
+                  summary: List representation with denormalized data
                   value:
                     data:
                       - id: "550e8400-e29b-41d4-a716-446655440000"
                         name: "John Doe"
                         email: "john.doe@example.com"
                         phone: "+1234567890"
-                        telegram: "@johndoe"
+                        coachId: "660e8400-e29b-41d4-a716-446655440001"
+                        coachName: "Coach Smith"
+                        createdAt: "2024-01-15T10:30:00Z"
                     pagination:
                       page: 1
                       limit: 20
                       total: 45
                       totalPages: 3
             
-            # Summary representation
-            application/vnd.api.athlete.summary+json:
+            # Lookup representation (for dropdowns)
+            application/vnd.api.athlete.lookup+json:
               schema:
                 type: object
                 required:
@@ -190,37 +189,21 @@ paths:
                   data:
                     type: array
                     items:
-                      $ref: '#/components/schemas/AthleteSummary'
+                      $ref: '#/components/schemas/AthleteLookup'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
               examples:
-                summary:
-                  summary: Summary representation
+                lookup:
+                  summary: Lookup representation (id + name)
                   value:
                     data:
                       - id: "550e8400-e29b-41d4-a716-446655440000"
                         name: "John Doe"
-                        email: "john.doe@example.com"
                     pagination:
                       page: 1
                       limit: 20
                       total: 45
                       totalPages: 3
-            
-            # Fallback to JSON
-            application/json:
-              schema:
-                type: object
-                required:
-                  - data
-                  - pagination
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Athlete'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
         
         '400':
           $ref: '#/components/responses/BadRequest'
@@ -274,7 +257,7 @@ paths:
                 format: uri
                 example: "/v1/athletes/550e8400-e29b-41d4-a716-446655440002"
           content:
-            application/vnd.api.athlete.full+json:
+            application/json:
               schema:
                 $ref: '#/components/schemas/Athlete'
               example:
@@ -286,9 +269,6 @@ paths:
                 telegram: "@janesmith"
                 createdAt: "2024-01-20T14:25:00Z"
                 updatedAt: "2024-01-20T14:25:00Z"
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Athlete'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -320,37 +300,35 @@ paths:
         Retrieve information about a specific athlete.
         Use Accept header to control the representation:
         
-        - **full** (default): Complete data including coachId, timestamps
+        - **base** (application/json, default): Complete data including coachId, timestamps
         - **detail**: Extended data without readonly fields (no coachId, timestamps)
-        - **summary**: Minimal data (id, name, email only)
+        - **summary**: Minimal data (id, name, email only) - optional, for compact view
         
         Useful for different UI contexts:
-        - **summary**: Dropdowns, autocomplete, search results
+        - **base**: Admin panels, auditing, debugging, data export
         - **detail**: Profile cards, forms, user-facing displays
-        - **full**: Admin panels, auditing, debugging, data export
+        - **summary**: Compact preview, search results
       operationId: getAthleteById
       parameters:
         - name: Accept
           in: header
           description: |
             Media type for response representation:
-            - `application/vnd.api.athlete.full+json` - Complete (default)
-            - `application/vnd.api.athlete.detail+json` - Extended without readonly
-            - `application/vnd.api.athlete.summary+json` - Minimal
-            - `application/json` - Fallback to full
+            - `application/json` - Base normalized representation (default)
+            - `application/vnd.api.athlete.detail+json` - Extended without readonly fields
+            - `application/vnd.api.athlete.summary+json` - Minimal data (optional, for compact view)
           required: false
           schema:
             type: string
             enum:
-              - application/vnd.api.athlete.full+json
+              - application/json
               - application/vnd.api.athlete.detail+json
               - application/vnd.api.athlete.summary+json
-              - application/json
-            default: application/vnd.api.athlete.full+json
+            default: application/json
           examples:
-            full:
-              summary: Request full representation
-              value: application/vnd.api.athlete.full+json
+            base:
+              summary: Request base representation
+              value: application/json
             detail:
               summary: Request detail representation
               value: application/vnd.api.athlete.detail+json
@@ -362,13 +340,13 @@ paths:
         '200':
           description: Athlete found
           content:
-            # Full representation (default)
-            application/vnd.api.athlete.full+json:
+            # Base representation (default)
+            application/json:
               schema:
                 $ref: '#/components/schemas/Athlete'
               examples:
-                full:
-                  summary: Complete athlete data
+                base:
+                  summary: Base normalized athlete data
                   value:
                     id: "550e8400-e29b-41d4-a716-446655440000"
                     coachId: "660e8400-e29b-41d4-a716-446655440001"
@@ -404,11 +382,6 @@ paths:
                     id: "550e8400-e29b-41d4-a716-446655440000"
                     name: "John Doe"
                     email: "john.doe@example.com"
-            
-            # Fallback
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Athlete'
         
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -451,9 +424,6 @@ paths:
         '200':
           description: Athlete updated successfully
           content:
-            application/vnd.api.athlete.full+json:
-              schema:
-                $ref: '#/components/schemas/Athlete'
             application/json:
               schema:
                 $ref: '#/components/schemas/Athlete'
@@ -504,9 +474,6 @@ paths:
         '200':
           description: Athlete updated successfully
           content:
-            application/vnd.api.athlete.full+json:
-              schema:
-                $ref: '#/components/schemas/Athlete'
             application/json:
               schema:
                 $ref: '#/components/schemas/Athlete'
@@ -560,76 +527,6 @@ paths:
       security:
         - bearerAuth: []
 
-  /athletes/batch:
-    delete:
-      tags:
-        - Athletes
-      summary: Batch delete athletes
-      description: |
-        Delete multiple athletes in one request (up to 100).
-        Returns partial success - some deletions may fail while others succeed.
-      operationId: batchDeleteAthletes
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - ids
-              properties:
-                ids:
-                  type: array
-                  items:
-                    type: string
-                    format: uuid
-                  minItems: 1
-                  maxItems: 100
-                  description: Array of athlete IDs to delete
-            example:
-              ids:
-                - "550e8400-e29b-41d4-a716-446655440000"
-                - "550e8400-e29b-41d4-a716-446655440001"
-      responses:
-        '200':
-          description: Batch operation completed (may include partial failures)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  deleted:
-                    type: array
-                    items:
-                      type: string
-                      format: uuid
-                    description: Successfully deleted athlete IDs
-                  failed:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                          format: uuid
-                        reason:
-                          type: string
-                    description: Failed deletions with reasons
-              example:
-                deleted:
-                  - "550e8400-e29b-41d4-a716-446655440000"
-                failed:
-                  - id: "550e8400-e29b-41d4-a716-446655440001"
-                    reason: "Athlete not found"
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-      security:
-        - bearerAuth: []
-
   /coaches/{coachId}/athletes:
     get:
       tags:
@@ -667,45 +564,14 @@ paths:
           schema:
             type: string
             enum:
-              - application/vnd.api.athlete.full+json
-              - application/vnd.api.athlete.detail+json
-              - application/vnd.api.athlete.summary+json
               - application/json
-            default: application/vnd.api.athlete.full+json
+              - application/vnd.api.athlete.list+json
+              - application/vnd.api.athlete.lookup+json
+            default: application/json
       responses:
         '200':
           description: Successful response
           content:
-            application/vnd.api.athlete.full+json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Athlete'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-            application/vnd.api.athlete.detail+json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/AthleteDetail'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
-            application/vnd.api.athlete.summary+json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/AthleteSummary'
-                  pagination:
-                    $ref: '#/components/schemas/Pagination'
             application/json:
               schema:
                 type: object
@@ -714,6 +580,26 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Athlete'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+            application/vnd.api.athlete.list+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleteListItem'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+            application/vnd.api.athlete.lookup+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleteLookup'
                   pagination:
                     $ref: '#/components/schemas/Pagination'
         '401':
@@ -736,21 +622,23 @@ components:
     Athlete:
       type: object
       description: |
-        **Full representation** of an athlete (default).
+        **Base normalized representation** of an athlete (default).
         Includes all fields: mutable data + readonly metadata.
-        Used with: `application/vnd.api.athlete.full+json`
+        Used with: `application/json`
         
         Use cases:
+        - Default standard representation
         - Admin panels
         - Debugging and auditing
         - Data export
-        - When you need complete information including relationships and timestamps
+        - When no specific Accept header is provided
       required:
         - id
         - coachId
         - name
         - email
         - phone
+        - telegram
         - createdAt
         - updatedAt
       properties:
@@ -801,6 +689,85 @@ components:
           readOnly: true
           example: "2024-01-15T10:30:00Z"
 
+    AthleteListItem:
+      type: object
+      description: |
+        **List representation** with denormalized data for tables.
+        Used with: `application/vnd.api.athlete.list+json`
+        
+        Use cases:
+        - Lists in tables (grid/table views)
+        - Denormalized data for performance
+        - When related data is needed without client-side JOIN
+        - List endpoints with pagination
+      required:
+        - id
+        - name
+        - email
+        - phone
+        - coachId
+        - coachName
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Full name of the athlete
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+          example: "+1234567890"
+        coachId:
+          type: string
+          format: uuid
+          description: Coach UUID
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        coachName:
+          type: string
+          description: Coach name (denormalized!)
+          example: "Coach Smith"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when athlete was created
+          example: "2024-01-15T10:30:00Z"
+
+    AthleteLookup:
+      type: object
+      description: |
+        **Lookup representation** for dropdown/select controls.
+        Used with: `application/vnd.api.athlete.lookup+json`
+        
+        Use cases:
+        - Dropdown lists (select boxes)
+        - Autocomplete fields
+        - Reference fields in forms
+        - Minimal data volume for selection
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Display name
+          example: "John Doe"
+
     AthleteDetail:
       type: object
       description: |
@@ -818,6 +785,7 @@ components:
         - name
         - email
         - phone
+        - telegram
       properties:
         id:
           type: string
@@ -936,8 +904,8 @@ components:
       description: |
         **Request schema for full replacement** (PUT /athletes/{id}).
         
-        All fields are REQUIRED (except telegram which can be null).
-        This replaces the entire resource - missing fields would become null/undefined.
+        All fields are REQUIRED (including telegram which must be explicitly specified, even if null).
+        This replaces the entire resource - missing fields will cause validation error.
         
         Excludes readonly fields:
         - id (cannot be changed)
@@ -950,6 +918,7 @@ components:
         - name
         - email
         - phone
+        - telegram
       properties:
         coachId:
           type: string
@@ -1206,10 +1175,9 @@ components:
               details:
                 requested: "application/xml"
                 supported:
-                  - "application/vnd.api.athlete.full+json"
+                  - "application/json"
                   - "application/vnd.api.athlete.detail+json"
                   - "application/vnd.api.athlete.summary+json"
-                  - "application/json"
               path: "/v1/athletes/550e8400-e29b-41d4-a716-446655440000"
               timestamp: "2024-01-20T14:25:00Z"
 
