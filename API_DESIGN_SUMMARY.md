@@ -356,23 +356,7 @@ interface AthletePatch {
 
 ---
 
-### 7. `DELETE /{resource}/batch` - Batch deletion
-**Example**: `DELETE /athletes/batch` - Batch delete athletes
-- **Body**: `{ ids: string[] }` (1-100 IDs)
-- **Response**: 200 OK with report:
-  ```json
-  {
-    "deleted": ["id1", "id2"],
-    "failed": [
-      { "id": "id3", "reason": "Not found" }
-    ]
-  }
-  ```
-- **Semantics**: Partial success (no rollback)
-
----
-
-### 8. `GET /{parent-resource}/{parentId}/{child-resource}` - Nested resources
+### 7. `GET /{parent-resource}/{parentId}/{child-resource}` - Nested resources
 **Example**: `GET /coaches/{coachId}/athletes` - Coach's athletes
 - Nested resource endpoint
 - Same pagination parameters and Accept header
@@ -501,10 +485,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 7. **REST semantics**: proper HTTP method usage
 8. **Readonly fields**: `id`, `createdAt`, `updatedAt` cannot be changed by client
 9. **Location header**: when creating resource (201) points to new resource
-10. **Batch operations**: for bulk actions with partial success
-11. **Nested resources**: `/coaches/{id}/athletes` for related data
-12. **Content negotiation**: Accept header for different representations
-13. **Default representation**: `application/json` → base normalized representation
+10. **Nested resources**: `/coaches/{id}/athletes` for related data
+11. **Content negotiation**: Accept header for different representations
+12. **Default representation**: `application/json` → base normalized representation
 
 ---
 
@@ -585,29 +568,6 @@ Content-Type: application/json
 }
 
 → 200 OK (returns full Athlete with updated phone)
-```
-
----
-
-### Scenario 7: Delete multiple athletes
-```http
-DELETE /athletes/batch
-Content-Type: application/json
-
-{
-  "ids": ["550e8400...", "550e8401...", "550e8402..."]
-}
-
-→ 200 OK
-{
-  "deleted": ["550e8400...", "550e8401..."],
-  "failed": [
-    {
-      "id": "550e8402...",
-      "reason": "Athlete has related records"
-    }
-  ]
-}
 ```
 
 ---
@@ -1049,7 +1009,6 @@ For clients that need custom field sets.
 - ✅ Filtering and sorting
 - ✅ Uniform errors with codes
 - ✅ JWT authentication on all endpoints
-- ✅ Batch operations with partial success
 - ✅ Nested resources for related data
 - ✅ Location header when creating resource
 - ✅ Readonly fields protected from modification
