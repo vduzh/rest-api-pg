@@ -40,8 +40,8 @@ application/vnd.api.{resource}.{representation}+json
 application/json                              # base normalized representation (default)
 application/vnd.api.{resource}.list+json      # list representation (tables, denormalization)
 application/vnd.api.{resource}.lookup+json    # for dropdown/select (id + name)
-application/vnd.api.{resource}.detail+json    # extended without readonly fields
-application/vnd.api.{resource}.summary+json   # minimal representation
+application/vnd.api.{resource}.detail+json    # extended without readonly fields (for single resource only)
+application/vnd.api.{resource}.summary+json   # minimal representation (for single resource only)
 ```
 
 ### Examples for different resources:
@@ -303,7 +303,6 @@ interface AthletePatch {
 - Accept header determines representation:
   - `application/vnd.api.{resource}.list+json` → `AthleteListItem[]` (for tables, with denormalization)
   - `application/vnd.api.{resource}.lookup+json` → `AthleteLookup[]` (for dropdown)
-  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary[]` (compact)
   - `application/json` → `Athlete[]` (base, default)
 - **Response**: 200 OK with array + pagination metadata
 
@@ -323,6 +322,7 @@ interface AthletePatch {
 - Accept header determines representation:
   - `application/json` → `Athlete` (default, base)
   - `application/vnd.api.{resource}.detail+json` → `AthleteDetail`
+  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary` (optional, for compact view)
 - **Response**: 200 OK
 - **Errors**: 404 (not found), 406 (unsupported Accept)
 
@@ -1041,7 +1041,7 @@ For clients that need custom field sets.
 
 - ✅ Content negotiation via **Accept header**
 - ✅ Media Type: `application/json` (base) and `application/vnd.api.{resource}.{representation}+json` (special)
-- ✅ Five representations: **base** (application/json), **list**, **lookup**, **detail**, **summary**
+- ✅ Five representations: **base** (application/json), **list**, **lookup**, **detail** (single resource), **summary** (single resource)
 - ✅ Eight schemas: **Athlete**, **AthleteListItem**, **AthleteLookup**, **AthleteDetail**, **AthleteSummary**, **AthleteCreate**, **AthleteUpdate**, **AthletePatch**
 - ✅ Naming convention: `{Resource}{Operation}` (industry standard)
 - ✅ REST semantics: proper usage of GET/POST/PUT/PATCH/DELETE
@@ -1077,7 +1077,7 @@ This specification demonstrates the approach using the **Athletes** module as an
 ### Pattern application:
 Each new resource should follow the same principles:
 - ✅ Content negotiation via Accept header
-- ✅ Five representations: base (application/json), list, lookup, detail, summary
+- ✅ Five representations: base (application/json), list, lookup, detail (single resource), summary (single resource)
 - ✅ Eight schemas: {Resource}, {Resource}ListItem, {Resource}Lookup, {Resource}Detail, {Resource}Summary, {Resource}Create, {Resource}Update, {Resource}Patch
 - ✅ Standard HTTP methods and response codes
 - ✅ Pagination, filtering, sorting
