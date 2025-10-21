@@ -1,159 +1,159 @@
-# Sports Management System REST API - Проектное решение
+# Sports Management System REST API - Design Solution
 
-## Обзор
+## Overview
 
-Профессиональное проектирование REST API для спортивной системы управления с использованием content negotiation через Accept headers и следованием industry-standard best practices.
+Professional REST API design for sports management system using content negotiation via Accept headers and following industry-standard best practices.
 
-**Примечание**: Данная спецификация демонстрирует подход на примере модуля Athletes, но принципы и паттерны применимы ко всем ресурсам системы (Coaches и т.д.).
-
----
-
-## 🎯 Ключевые архитектурные решения
-
-### 1. Content Negotiation через Accept Header
-
-**Решение**: Использование Accept header вместо query parameter `?view=...`
-
-**Обоснование**:
-- ✅ Строгая типизация на уровне OpenAPI спецификации
-- ✅ Каждый Content-Type жестко связан со своей схемой
-- ✅ Автоматическая генерация типизированных клиентов
-- ✅ Соответствие принципам REST (content negotiation)
-- ✅ Поддержка стандартного кода ответа 406 Not Acceptable
-
-**Альтернативы отклонены**:
-- Query parameter `?view=summary` - слабая связь с типами
-- Separate endpoints `/athletes/{id}/summary` - нарушение принципа "один ресурс = один URL"
-- Accept header был выбран как более правильный подход
+**Note**: This specification demonstrates the approach using the Athletes module as an example, but the principles and patterns apply to all system resources (Coaches, etc.).
 
 ---
 
-## 📐 Конвенция Media Types
+## 🎯 Key Architectural Decisions
 
-### Принятый паттерн:
+### 1. Content Negotiation via Accept Header
+
+**Solution**: Using Accept header instead of query parameter `?view=...`
+
+**Rationale**:
+- ✅ Strict typing at OpenAPI specification level
+- ✅ Each Content-Type is tightly bound to its schema
+- ✅ Automatic generation of typed clients
+- ✅ Compliance with REST principles (content negotiation)
+- ✅ Support for standard 406 Not Acceptable response code
+
+**Rejected alternatives**:
+- Query parameter `?view=summary` - weak type binding
+- Separate endpoints `/athletes/{id}/summary` - violates "one resource = one URL" principle
+- Accept header was chosen as the more correct approach
+
+---
+
+## 📐 Media Types Convention
+
+### Adopted pattern:
 ```
 application/vnd.api.{resource}.{representation}+json
 ```
 
-### Для любого ресурса системы:
+### For any system resource:
 ```
-application/json                              # базовое нормализованное представление (default)
-application/vnd.api.{resource}.list+json      # списковое представление (таблицы, денормализация)
-application/vnd.api.{resource}.lookup+json    # для dropdown/select (id + name)
-application/vnd.api.{resource}.detail+json    # расширенное без readonly полей
-application/vnd.api.{resource}.summary+json   # минимальное представление
+application/json                              # base normalized representation (default)
+application/vnd.api.{resource}.list+json      # list representation (tables, denormalization)
+application/vnd.api.{resource}.lookup+json    # for dropdown/select (id + name)
+application/vnd.api.{resource}.detail+json    # extended without readonly fields
+application/vnd.api.{resource}.summary+json   # minimal representation
 ```
 
-### Примеры для разных ресурсов:
+### Examples for different resources:
 ```
-application/json                              # базовое представление (любой ресурс)
-application/vnd.api.athlete.list+json         # Athletes - списки/таблицы
+application/json                              # base representation (any resource)
+application/vnd.api.athlete.list+json         # Athletes - lists/tables
 application/vnd.api.athlete.lookup+json       # Athletes - dropdown
 application/vnd.api.athlete.detail+json       # Athletes - detail
-application/vnd.api.coach.list+json           # Coaches - списки/таблицы
+application/vnd.api.coach.list+json           # Coaches - lists/tables
 application/vnd.api.coach.lookup+json         # Coaches - dropdown
 ```
 
-### Анатомия Media Type:
+### Media Type anatomy:
 ```
 application/vnd.api.{resource}.{representation}+json
 │           │   │   │         │              │
-│           │   │   │         │              └─ suffix: формат данных
-│           │   │   │         └───────────────── representation: представление
-│           │   │   └─────────────────────────── resource: тип ресурса
-│           │   └─────────────────────────────── vendor: проект/компания
+│           │   │   │         │              └─ suffix: data format
+│           │   │   │         └───────────────── representation: view
+│           │   │   └─────────────────────────── resource: resource type
+│           │   └─────────────────────────────── vendor: project/company
 │           └─────────────────────────────────── tree: vendor-specific
 └─────────────────────────────────────────────── type: application
 ```
 
-**Обоснование выбора `vnd.` префикса**:
-- Стандарт для vendor-specific API (GitHub, Stripe, Heroku используют)
-- Подходит для собственных API продуктов
-- Регистрируемый в IANA (опционально)
+**Rationale for `vnd.` prefix choice**:
+- Standard for vendor-specific APIs (used by GitHub, Stripe, Heroku)
+- Suitable for proprietary API products
+- IANA registerable (optional)
 
 ---
 
-## 🗂️ Схемы данных и naming conventions
+## 🗂️ Data Schemas and Naming Conventions
 
-### Response Models (что возвращает сервер)
+### Response Models (what server returns)
 
-#### 1. `{Resource}` - Базовое нормализованное представление
+#### 1. `{Resource}` - Base Normalized Representation
 **Media Type**: `application/json`
 
-**Пример для Athlete**:
+**Example for Athlete**:
 
 ```typescript
 interface Athlete {
-  id: string;              // UUID, readonly, генерируется сервером
+  id: string;              // UUID, readonly, server-generated
   coachId: string;         // UUID, FK to Coach
-  name: string;            // 1-255 символов
-  email: string;           // уникальный email
-  phone: string;           // E.164 формат (+1234567890)
-  telegram: string | null; // @username или null
+  name: string;            // 1-255 characters
+  email: string;           // unique email
+  phone: string;           // E.164 format (+1234567890)
+  telegram: string | null; // @username or null
   createdAt: string;       // ISO 8601, readonly
   updatedAt: string;       // ISO 8601, readonly
 }
 ```
 
 **Use cases**:
-- Стандартное представление по умолчанию
-- Нормализованные данные "как есть" из БД
-- Admin панели
-- Debugging и auditing
+- Default standard representation
+- Normalized data "as is" from database
+- Admin panels
+- Debugging and auditing
 - Data export
-- Когда не указан специальный Accept header
+- When no specific Accept header is provided
 
 ---
 
-#### 2. `{Resource}ListItem` - Списковое представление
+#### 2. `{Resource}ListItem` - List Representation
 **Media Type**: `application/vnd.api.{resource}.list+json`
 
-**Пример для AthleteListItem**:
+**Example for AthleteListItem**:
 
 ```typescript
 interface AthleteListItem {
   id: string;              // UUID
-  name: string;            // имя атлета
-  email: string;           // email атлета
-  phone: string;           // телефон
-  coachId: string;         // UUID тренера
-  coachName: string;       // имя тренера (денормализовано!)
+  name: string;            // athlete name
+  email: string;           // athlete email
+  phone: string;           // phone number
+  coachId: string;         // coach UUID
+  coachName: string;       // coach name (denormalized!)
   createdAt: string;       // ISO 8601
 }
 ```
 
 **Use cases**:
-- Списки в таблицах (grid/table views)
-- Денормализованные данные для производительности
-- Когда нужны связанные данные без JOIN на клиенте
-- Списковые endpoint'ы с пагинацией
+- Lists in tables (grid/table views)
+- Denormalized data for performance
+- When related data is needed without client-side JOIN
+- List endpoints with pagination
 
 ---
 
-#### 3. `{Resource}Lookup` - Для dropdown/select
+#### 3. `{Resource}Lookup` - For dropdown/select
 **Media Type**: `application/vnd.api.{resource}.lookup+json`
 
-**Пример для AthleteLookup**:
+**Example for AthleteLookup**:
 
 ```typescript
 interface AthleteLookup {
   id: string;              // UUID
-  name: string;            // отображаемое имя
+  name: string;            // display name
 }
 ```
 
 **Use cases**:
-- Dropdown списки (select boxes)
-- Autocomplete поля
-- Reference fields в формах
-- Минимальный объем данных для выбора
+- Dropdown lists (select boxes)
+- Autocomplete fields
+- Reference fields in forms
+- Minimal data volume for selection
 
 ---
 
-#### 4. `{Resource}Detail` - Расширенное без системных полей
+#### 4. `{Resource}Detail` - Extended without system fields
 **Media Type**: `application/vnd.api.{resource}.detail+json`
 
-**Пример для AthleteDetail**:
+**Example for AthleteDetail**:
 
 ```typescript
 interface AthleteDetail {
@@ -162,21 +162,21 @@ interface AthleteDetail {
   email: string;
   phone: string;
   telegram: string | null;
-  // Исключены: coachId, createdAt, updatedAt
+  // Excluded: coachId, createdAt, updatedAt
 }
 ```
 
 **Use cases**:
-- Карточки профилей
-- Формы редактирования
-- User-facing интерфейсы, где системные поля не нужны
+- Profile cards
+- Edit forms
+- User-facing interfaces where system fields are not needed
 
 ---
 
-#### 5. `{Resource}Summary` - Краткое представление
+#### 5. `{Resource}Summary` - Brief Representation
 **Media Type**: `application/vnd.api.{resource}.summary+json`
 
-**Пример для AthleteSummary**:
+**Example for AthleteSummary**:
 
 ```typescript
 interface AthleteSummary {
@@ -187,180 +187,180 @@ interface AthleteSummary {
 ```
 
 **Use cases**:
-- Превью результатов поиска
-- Компактные карточки
-- Списки с большим количеством элементов (экономия трафика)
-- Когда нужно чуть больше чем lookup, но меньше чем list
+- Search results preview
+- Compact cards
+- Lists with many elements (traffic optimization)
+- When you need slightly more than lookup, but less than list
 
 ---
 
-### Request Models (что отправляет клиент)
+### Request Models (what client sends)
 
-#### 6. `{Resource}Create` - Создание ресурса (POST)
+#### 6. `{Resource}Create` - Resource creation (POST)
 
-**Пример для AthleteCreate**:
+**Example for AthleteCreate**:
 
 ```typescript
 interface AthleteCreate {
-  coachId: string;         // обязательно
-  name: string;            // обязательно
-  email: string;           // обязательно
-  phone: string;           // обязательно
-  telegram?: string | null; // опционально
-  // Исключены: id, createdAt, updatedAt (генерируются сервером)
+  coachId: string;         // required
+  name: string;            // required
+  email: string;           // required
+  phone: string;           // required
+  telegram?: string | null; // optional
+  // Excluded: id, createdAt, updatedAt (server-generated)
 }
 ```
 
-**Обоснование отдельной схемы**:
-- 🔒 Безопасность: клиент не может подделать `id`
-- ✅ Логичность: временные метки генерирует только сервер
-- ✅ Валидация: четкое разделение входных и выходных данных
+**Rationale for separate schema**:
+- 🔒 Security: client cannot forge `id`
+- ✅ Logic: timestamps are server-generated only
+- ✅ Validation: clear separation of input and output data
 
 ---
 
-#### 7. `{Resource}Update` - Полная замена (PUT)
+#### 7. `{Resource}Update` - Full replacement (PUT)
 
-**Пример для AthleteUpdate**:
+**Example for AthleteUpdate**:
 
 ```typescript
 interface AthleteUpdate {
-  coachId: string;         // обязательно
-  name: string;            // обязательно
-  email: string;           // обязательно
-  phone: string;           // обязательно
-  telegram: string | null; // обязательно явно указать (даже null)
-  // Исключены: id, createdAt, updatedAt
+  coachId: string;         // required
+  name: string;            // required
+  email: string;           // required
+  phone: string;           // required
+  telegram: string | null; // required, must be explicitly specified (even null)
+  // Excluded: id, createdAt, updatedAt
 }
 ```
 
-**Семантика PUT**:
-- Заменяет весь ресурс
-- Все поля обязательны
-- Отсутствующие поля приведут к ошибке валидации
-- Идемпотентная операция
+**PUT semantics**:
+- Replaces entire resource
+- All fields are required
+- Missing fields will cause validation error
+- Idempotent operation
 
 ---
 
-#### 8. `{Resource}Patch` - Частичное обновление (PATCH)
+#### 8. `{Resource}Patch` - Partial update (PATCH)
 
-**Пример для AthletePatch**:
+**Example for AthletePatch**:
 
 ```typescript
 interface AthletePatch {
-  coachId?: string;         // опционально
-  name?: string;            // опционально
-  email?: string;           // опционально
-  phone?: string;           // опционально
-  telegram?: string | null; // опционально
-  // Минимум 1 поле должно быть отправлено
+  coachId?: string;         // optional
+  name?: string;            // optional
+  email?: string;           // optional
+  phone?: string;           // optional
+  telegram?: string | null; // optional
+  // At least 1 field must be sent
 }
 ```
 
-**Семантика PATCH**:
-- Обновляет только указанные поля
-- Все поля optional
-- Остальные поля не изменяются
-- НЕ идемпотентная операция при конкурентных обновлениях
+**PATCH semantics**:
+- Updates only specified fields
+- All fields are optional
+- Other fields remain unchanged
+- NOT idempotent operation with concurrent updates
 
 ---
 
 ## 🏗️ Naming Convention
 
-### Принятый стандарт: `{Resource}{Operation}`
+### Adopted standard: `{Resource}{Operation}`
 
-| Схема | HTTP Method | Назначение | Все поля обязательны? |
-|-------|-------------|------------|-----------------------|
-| `{Resource}` | GET | Базовое чтение | ✅ Да |
-| `{Resource}ListItem` | GET | Списки/таблицы | ✅ Да |
-| `{Resource}Lookup` | GET | Dropdown (id+name) | ✅ Да |
-| `{Resource}Detail` | GET | Расширенное чтение | ✅ Да |
-| `{Resource}Summary` | GET | Краткое чтение | ✅ Да |
-| `{Resource}Create` | POST | Создание | ✅ Да (кроме optional) |
-| `{Resource}Update` | PUT | Полная замена | ✅ Да |
-| `{Resource}Patch` | PATCH | Частичное обновление | ❌ Все optional |
+| Schema | HTTP Method | Purpose | All fields required? |
+|-------|-------------|---------|---------------------|
+| `{Resource}` | GET | Base reading | ✅ Yes |
+| `{Resource}ListItem` | GET | Lists/tables | ✅ Yes |
+| `{Resource}Lookup` | GET | Dropdown (id+name) | ✅ Yes |
+| `{Resource}Detail` | GET | Extended reading | ✅ Yes |
+| `{Resource}Summary` | GET | Brief reading | ✅ Yes |
+| `{Resource}Create` | POST | Creation | ✅ Yes (except optional) |
+| `{Resource}Update` | PUT | Full replacement | ✅ Yes |
+| `{Resource}Patch` | PATCH | Partial update | ❌ All optional |
 
-**Примеры для разных ресурсов**:
+**Examples for different resources**:
 - `Athlete`, `AthleteListItem`, `AthleteLookup`, `AthleteDetail`, `AthleteSummary`, `AthleteCreate`, `AthleteUpdate`, `AthletePatch`
 - `Coach`, `CoachListItem`, `CoachLookup`, `CoachDetail`, `CoachSummary`, `CoachCreate`, `CoachUpdate`, `CoachPatch`
 
-**Это НЕ случайность** - это industry standard, используемый в:
+**This is NOT accidental** - this is industry standard, used in:
 - REST API Best Practices (Microsoft, Google)
 - OpenAPI Generator defaults
 - NestJS, Spring Boot, ASP.NET Core
-- Крупнейших публичных API (Stripe, GitHub, Twilio)
+- Major public APIs (Stripe, GitHub, Twilio)
 
 ---
 
-## 🛣️ Эндпоинты API
+## 🛣️ API Endpoints
 
-**Примечание**: Показаны эндпоинты для модуля Athletes как пример. Аналогичные эндпоинты должны быть реализованы для всех ресурсов системы.
+**Note**: Endpoints for the Athletes module are shown as an example. Similar endpoints should be implemented for all system resources.
 
-### 1. `GET /{resource}` - Список ресурсов
-**Пример**: `GET /athletes` - Список атлетов
-- Пагинация: `page`, `limit`
-- Фильтрация: `coachId`, `search`
-- Сортировка: `sort` (name_asc, name_desc, created_asc, created_desc)
-- Accept header определяет представление:
-  - `application/vnd.api.{resource}.list+json` → `AthleteListItem[]` (для таблиц, с денормализацией)
-  - `application/vnd.api.{resource}.lookup+json` → `AthleteLookup[]` (для dropdown)
-  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary[]` (компактное)
-  - `application/json` → `Athlete[]` (базовое, default)
-- **Ответ**: 200 OK с массивом + pagination metadata
-
----
-
-### 2. `POST /{resource}` - Создание ресурса
-**Пример**: `POST /athletes` - Создание атлета
-- **Body**: `AthleteCreate` схема
-- **Ответ**: 201 Created + Location header
-- **Возвращает**: Полный объект `Athlete` с сгенерированными полями
-- **Ошибки**: 409 (конфликт email), 422 (валидация)
+### 1. `GET /{resource}` - Resource list
+**Example**: `GET /athletes` - List of athletes
+- Pagination: `page`, `limit`
+- Filtering: `coachId`, `search`
+- Sorting: `sort` (name_asc, name_desc, created_asc, created_desc)
+- Accept header determines representation:
+  - `application/vnd.api.{resource}.list+json` → `AthleteListItem[]` (for tables, with denormalization)
+  - `application/vnd.api.{resource}.lookup+json` → `AthleteLookup[]` (for dropdown)
+  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary[]` (compact)
+  - `application/json` → `Athlete[]` (base, default)
+- **Response**: 200 OK with array + pagination metadata
 
 ---
 
-### 3. `GET /{resource}/{id}` - Получение по ID
-**Пример**: `GET /athletes/{athleteId}` - Получение атлета по ID
-- Accept header определяет представление:
-  - `application/json` → `Athlete` (default, базовое)
+### 2. `POST /{resource}` - Resource creation
+**Example**: `POST /athletes` - Create athlete
+- **Body**: `AthleteCreate` schema
+- **Response**: 201 Created + Location header
+- **Returns**: Full `Athlete` object with generated fields
+- **Errors**: 409 (email conflict), 422 (validation)
+
+---
+
+### 3. `GET /{resource}/{id}` - Get by ID
+**Example**: `GET /athletes/{athleteId}` - Get athlete by ID
+- Accept header determines representation:
+  - `application/json` → `Athlete` (default, base)
   - `application/vnd.api.{resource}.detail+json` → `AthleteDetail`
   - `application/vnd.api.{resource}.summary+json` → `AthleteSummary`
-- **Ответ**: 200 OK
-- **Ошибки**: 404 (не найден), 406 (неподдерживаемый Accept)
+- **Response**: 200 OK
+- **Errors**: 404 (not found), 406 (unsupported Accept)
 
 ---
 
-### 4. `PUT /{resource}/{id}` - Полная замена
-**Пример**: `PUT /athletes/{athleteId}` - Полная замена атлета
-- **Body**: `AthleteUpdate` схема (все поля обязательны)
-- **Ответ**: 200 OK с полным `Athlete`
-- **Семантика**: Идемпотентная операция
-- **Ошибки**: 404, 422 (валидация)
+### 4. `PUT /{resource}/{id}` - Full replacement
+**Example**: `PUT /athletes/{athleteId}` - Full athlete replacement
+- **Body**: `AthleteUpdate` schema (all fields required)
+- **Response**: 200 OK with full `Athlete`
+- **Semantics**: Idempotent operation
+- **Errors**: 404, 422 (validation)
 
 ---
 
-### 5. `PATCH /{resource}/{id}` - Частичное обновление
-**Пример**: `PATCH /athletes/{athleteId}` - Частичное обновление атлета
-- **Body**: `AthletePatch` схема (минимум 1 поле)
-- **Ответ**: 200 OK с полным `Athlete`
-- **Семантика**: НЕ идемпотентная
-- **Ошибки**: 400 (пустое тело), 404, 422
+### 5. `PATCH /{resource}/{id}` - Partial update
+**Example**: `PATCH /athletes/{athleteId}` - Partial athlete update
+- **Body**: `AthletePatch` schema (minimum 1 field)
+- **Response**: 200 OK with full `Athlete`
+- **Semantics**: NOT idempotent
+- **Errors**: 400 (empty body), 404, 422
 
 ---
 
-### 6. `DELETE /{resource}/{id}` - Удаление
-**Пример**: `DELETE /athletes/{athleteId}` - Удаление атлета
-- **Ответ**: 204 No Content (успех, пустое тело)
-- **Семантика**: Идемпотентная
-- **Ошибки**: 
-  - 404 (не найден)
-  - 409 (имеет зависимости, например, связанные записи)
+### 6. `DELETE /{resource}/{id}` - Deletion
+**Example**: `DELETE /athletes/{athleteId}` - Delete athlete
+- **Response**: 204 No Content (success, empty body)
+- **Semantics**: Idempotent
+- **Errors**: 
+  - 404 (not found)
+  - 409 (has dependencies, e.g., related records)
 
 ---
 
-### 7. `DELETE /{resource}/batch` - Массовое удаление
-**Пример**: `DELETE /athletes/batch` - Массовое удаление атлетов
-- **Body**: `{ ids: string[] }` (1-100 ID)
-- **Ответ**: 200 OK с отчетом:
+### 7. `DELETE /{resource}/batch` - Batch deletion
+**Example**: `DELETE /athletes/batch` - Batch delete athletes
+- **Body**: `{ ids: string[] }` (1-100 IDs)
+- **Response**: 200 OK with report:
   ```json
   {
     "deleted": ["id1", "id2"],
@@ -369,54 +369,54 @@ interface AthletePatch {
     ]
   }
   ```
-- **Семантика**: Частичный успех (no rollback)
+- **Semantics**: Partial success (no rollback)
 
 ---
 
 ### 8. `GET /{parent-resource}/{parentId}/{child-resource}` - Nested resources
-**Пример**: `GET /coaches/{coachId}/athletes` - Атлеты тренера
+**Example**: `GET /coaches/{coachId}/athletes` - Coach's athletes
 - Nested resource endpoint
-- Те же параметры пагинации и Accept header
-- **Ответ**: 200 OK с массивом + pagination
-- **Ошибки**: 404 (тренер не найден)
+- Same pagination parameters and Accept header
+- **Response**: 200 OK with array + pagination
+- **Errors**: 404 (coach not found)
 
 ---
 
-## 📊 HTTP методы и семантика
+## 📊 HTTP Methods and Semantics
 
-| Метод | Идемпотентный? | Безопасный? | Назначение | Код успеха |
-|-------|----------------|-------------|------------|------------|
-| GET | ✅ Да | ✅ Да | Получение данных | 200 |
-| POST | ❌ Нет | ❌ Нет | Создание ресурса | 201 |
-| PUT | ✅ Да | ❌ Нет | Полная замена | 200 |
-| PATCH | ❌ Нет | ❌ Нет | Частичное обновление | 200 |
-| DELETE | ✅ Да | ❌ Нет | Удаление | 204 |
+| Method | Idempotent? | Safe? | Purpose | Success Code |
+|-------|-------------|-------|---------|-------------|
+| GET | ✅ Yes | ✅ Yes | Data retrieval | 200 |
+| POST | ❌ No | ❌ No | Resource creation | 201 |
+| PUT | ✅ Yes | ❌ No | Full replacement | 200 |
+| PATCH | ❌ No | ❌ No | Partial update | 200 |
+| DELETE | ✅ Yes | ❌ No | Deletion | 204 |
 
-**Идемпотентность**: повторный запрос дает тот же результат  
-**Безопасность**: не изменяет состояние сервера
+**Idempotency**: repeated request gives same result  
+**Safety**: does not change server state
 
 ---
 
-## 🚨 Структура ошибок
+## 🚨 Error Structure
 
-### Единообразный формат
+### Uniform format
 
 ```json
 {
   "error": {
-    "code": "VALIDATION_ERROR",           // машиночитаемый код
-    "message": "Request validation failed", // человекочитаемое сообщение
-    "details": {                          // дополнительный контекст
+    "code": "VALIDATION_ERROR",           // machine-readable code
+    "message": "Request validation failed", // human-readable message
+    "details": {                          // additional context
       "field": "email",
       "reason": "Invalid format"
     },
-    "path": "/v1/athletes",               // путь запроса
-    "timestamp": "2024-01-20T14:25:00Z"   // время ошибки
+    "path": "/v1/athletes",               // request path
+    "timestamp": "2024-01-20T14:25:00Z"   // error time
   }
 }
 ```
 
-### Специальный формат для валидации (422)
+### Special format for validation (422)
 
 ```json
 {
@@ -439,115 +439,115 @@ interface AthletePatch {
 }
 ```
 
-### Коды статуса HTTP
+### HTTP Status Codes
 
-| Код | Назначение | Когда используется |
-|-----|------------|--------------------|
-| 200 | OK | GET, PUT, PATCH успешны |
-| 201 | Created | POST успешен + Location header |
-| 204 | No Content | DELETE успешен (пустое тело) |
-| 400 | Bad Request | Некорректный JSON, неверные параметры |
-| 401 | Unauthorized | Отсутствует/невалидный JWT токен |
-| 404 | Not Found | Ресурс не найден |
-| 406 | Not Acceptable | Неподдерживаемый Accept header |
-| 409 | Conflict | Дубликат email, нельзя удалить (зависимости) |
-| 422 | Unprocessable Entity | Ошибка валидации данных |
-| 500 | Internal Server Error | Ошибка сервера |
+| Code | Purpose | When used |
+|-----|---------|-----------|
+| 200 | OK | GET, PUT, PATCH successful |
+| 201 | Created | POST successful + Location header |
+| 204 | No Content | DELETE successful (empty body) |
+| 400 | Bad Request | Invalid JSON, wrong parameters |
+| 401 | Unauthorized | Missing/invalid JWT token |
+| 404 | Not Found | Resource not found |
+| 406 | Not Acceptable | Unsupported Accept header |
+| 409 | Conflict | Email duplicate, cannot delete (dependencies) |
+| 422 | Unprocessable Entity | Data validation error |
+| 500 | Internal Server Error | Server error |
 
 ---
 
-## 🔐 Аутентификация
+## 🔐 Authentication
 
-**Метод**: JWT Bearer токен
+**Method**: JWT Bearer token
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-- ✅ Все эндпоинты защищены
-- ❌ Без токена → 401 Unauthorized
-- Токен проверяется middleware на каждый запрос
+- ✅ All endpoints protected
+- ❌ Without token → 401 Unauthorized
+- Token validated by middleware on every request
 
 ---
 
-## 📈 Пагинация
+## 📈 Pagination
 
-### Query параметры
-- `page` - номер страницы (1-indexed, default: 1)
-- `limit` - элементов на странице (1-100, default: 20)
+### Query parameters
+- `page` - page number (1-indexed, default: 1)
+- `limit` - items per page (1-100, default: 20)
 
 ### Response metadata
 ```json
 {
   "data": [...],
   "pagination": {
-    "page": 1,           // текущая страница
-    "limit": 20,         // элементов на странице
-    "total": 45,         // всего элементов
-    "totalPages": 3      // всего страниц (ceil(total / limit))
+    "page": 1,           // current page
+    "limit": 20,         // items per page
+    "total": 45,         // total items
+    "totalPages": 3      // total pages (ceil(total / limit))
   }
 }
 ```
 
 ---
 
-## 💡 Best Practices реализованные в API
+## 💡 Best Practices implemented in API
 
-1. **Версионирование**: `/v1/` в URL для будущих breaking changes
-2. **Пагинация**: обязательна для всех списковых эндпоинтов
-3. **Фильтрация**: через query параметры (стандартно для REST)
-4. **Валидация**: на уровне схемы (форматы, паттерны, длина, regex)
-5. **Ошибки**: единообразный формат с машиночитаемыми кодами
-6. **Безопасность**: JWT для всех запросов, readonly поля защищены
-7. **REST семантика**: правильное использование HTTP методов
-8. **Readonly поля**: `id`, `createdAt`, `updatedAt` нельзя изменить клиенту
-9. **Location header**: при создании ресурса (201) указывает на новый ресурс
-10. **Batch операции**: для массовых действий с partial success
-11. **Nested resources**: `/coaches/{id}/athletes` для связанных данных
-12. **Content negotiation**: Accept header для разных представлений
-13. **Default representation**: `application/json` → базовое нормализованное представление
+1. **Versioning**: `/v1/` in URL for future breaking changes
+2. **Pagination**: mandatory for all list endpoints
+3. **Filtering**: via query parameters (REST standard)
+4. **Validation**: at schema level (formats, patterns, length, regex)
+5. **Errors**: uniform format with machine-readable codes
+6. **Security**: JWT for all requests, readonly fields protected
+7. **REST semantics**: proper HTTP method usage
+8. **Readonly fields**: `id`, `createdAt`, `updatedAt` cannot be changed by client
+9. **Location header**: when creating resource (201) points to new resource
+10. **Batch operations**: for bulk actions with partial success
+11. **Nested resources**: `/coaches/{id}/athletes` for related data
+12. **Content negotiation**: Accept header for different representations
+13. **Default representation**: `application/json` → base normalized representation
 
 ---
 
-## 🎯 Типичные сценарии использования
+## 🎯 Typical Use Cases
 
-### Сценарий 1: Dropdown список атлетов для select
+### Scenario 1: Dropdown list of athletes for select
 ```http
 GET /athletes?limit=100
 Accept: application/vnd.api.athlete.lookup+json
 ```
-Вернет только `id`, `name` - минимум данных для выбора.
+Returns only `id`, `name` - minimum data for selection.
 
 ---
 
-### Сценарий 2: Таблица атлетов с именем тренера
+### Scenario 2: Athletes table with coach name
 ```http
 GET /athletes?page=1&limit=20
 Accept: application/vnd.api.athlete.list+json
 ```
-Вернет денормализованные данные включая `coachName` - без дополнительных запросов на клиенте.
+Returns denormalized data including `coachName` - without additional client requests.
 
 ---
 
-### Сценарий 3: Форма редактирования атлета
+### Scenario 3: Athlete edit form
 ```http
 GET /athletes/550e8400...
 Accept: application/vnd.api.athlete.detail+json
 ```
-Вернет данные без `coachId`, `createdAt`, `updatedAt` - чистый UI.
+Returns data without `coachId`, `createdAt`, `updatedAt` - clean UI.
 
 ---
 
-### Сценарий 4: Admin панель с базовыми данными
+### Scenario 4: Admin panel with base data
 ```http
 GET /athletes/550e8400...
 Accept: application/json
 ```
-Вернет базовое нормализованное представление со всеми полями БД включая метаданные для аудита.
+Returns base normalized representation with all DB fields including metadata for auditing.
 
 ---
 
-### Сценарий 5: Создать нового атлета
+### Scenario 5: Create new athlete
 ```http
 POST /athletes
 Content-Type: application/json
@@ -576,7 +576,7 @@ Location: /v1/athletes/550e8400...
 
 ---
 
-### Сценарий 6: Обновить только телефон
+### Scenario 6: Update only phone number
 ```http
 PATCH /athletes/550e8400...
 Content-Type: application/json
@@ -585,12 +585,12 @@ Content-Type: application/json
   "phone": "+9876543210"
 }
 
-→ 200 OK (возвращает полный Athlete с обновленным phone)
+→ 200 OK (returns full Athlete with updated phone)
 ```
 
 ---
 
-### Сценарий 7: Удалить нескольких атлетов
+### Scenario 7: Delete multiple athletes
 ```http
 DELETE /athletes/batch
 Content-Type: application/json
@@ -613,16 +613,16 @@ Content-Type: application/json
 
 ---
 
-## 🔧 Рекомендации по реализации
+## 🔧 Implementation Recommendations
 
 ### Client-side (React + TypeScript)
 
-#### Media Type константы
+#### Media Type constants
 
 ```typescript
 // src/api/mediaTypes.ts
 export const MediaTypes = {
-  JSON: 'application/json', // базовое представление (default)
+  JSON: 'application/json', // base representation (default)
   ATHLETE_LIST: 'application/vnd.api.athlete.list+json',
   ATHLETE_LOOKUP: 'application/vnd.api.athlete.lookup+json',
   ATHLETE_DETAIL: 'application/vnd.api.athlete.detail+json',
@@ -636,7 +636,7 @@ export const MediaTypes = {
 export type MediaType = typeof MediaTypes[keyof typeof MediaTypes];
 ```
 
-#### API клиент с Accept header
+#### API client with Accept header
 
 ```typescript
 // src/api/client.ts
@@ -708,7 +708,7 @@ class ApiError extends Error {
 }
 ```
 
-#### React Hook пример
+#### React Hook example
 
 ```typescript
 // src/hooks/useAthletes.ts
@@ -742,7 +742,7 @@ export function useAthleteDetail(id: string) {
 
 ### Server-side (Spring Boot + Java)
 
-#### Media Type константы
+#### Media Type constants
 
 ```java
 // src/main/java/com/example/api/constants/MediaTypes.java
@@ -829,7 +829,7 @@ public class ContentNegotiationHelper {
 }
 ```
 
-#### Controller с Content Negotiation
+#### Controller with Content Negotiation
 
 ```java
 // src/main/java/com/example/api/controller/AthleteController.java
@@ -856,7 +856,7 @@ public class AthleteController {
     
     private final AthleteService athleteService;
     
-    // GET /athletes - Spring сам диспатчит по Accept header
+    // GET /athletes - Spring dispatches by Accept header
     @GetMapping(produces = MediaTypes.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaginatedResponse<Athlete>> getAthletesBase(
             @RequestParam(defaultValue = "1") int page,
@@ -889,7 +889,7 @@ public class AthleteController {
         return ResponseEntity.ok(athleteService.getAthletesLookup(pageRequest, search));
     }
     
-    // GET /athletes/{id} - Spring сам диспатчит по Accept header
+    // GET /athletes/{id} - Spring dispatches by Accept header
     @GetMapping(value = "/{id}", produces = MediaTypes.APPLICATION_JSON_VALUE)
     public ResponseEntity<Athlete> getAthleteBase(@PathVariable String id) {
         return ResponseEntity.ok(athleteService.getAthleteById(id));
@@ -995,7 +995,7 @@ public class GlobalExceptionHandler {
 
 ---
 
-## 📚 Будущие расширения
+## 📚 Future Extensions
 
 ### 1. Embedded Relationships (expand parameter)
 ```http
@@ -1017,11 +1017,11 @@ Response:
 }
 ```
 
-### 2. Sparse Fieldsets (дополнительная гибкость)
+### 2. Sparse Fieldsets (additional flexibility)
 ```http
 GET /athletes?fields=id,name,email,phone
 ```
-Для клиентов, которым нужен custom набор полей.
+For clients that need custom field sets.
 
 ### 3. HATEOAS Links
 ```json
@@ -1037,50 +1037,50 @@ GET /athletes?fields=id,name,email,phone
 
 ---
 
-## ✅ Итоговый чеклист решений
+## ✅ Final Solutions Checklist
 
-- ✅ Content negotiation через **Accept header**
-- ✅ Media Type: `application/json` (базовое) и `application/vnd.api.{resource}.{representation}+json` (специальные)
-- ✅ Пять представлений: **базовое** (application/json), **list**, **lookup**, **detail**, **summary**
-- ✅ Восемь схем: **Athlete**, **AthleteListItem**, **AthleteLookup**, **AthleteDetail**, **AthleteSummary**, **AthleteCreate**, **AthleteUpdate**, **AthletePatch**
+- ✅ Content negotiation via **Accept header**
+- ✅ Media Type: `application/json` (base) and `application/vnd.api.{resource}.{representation}+json` (special)
+- ✅ Five representations: **base** (application/json), **list**, **lookup**, **detail**, **summary**
+- ✅ Eight schemas: **Athlete**, **AthleteListItem**, **AthleteLookup**, **AthleteDetail**, **AthleteSummary**, **AthleteCreate**, **AthleteUpdate**, **AthletePatch**
 - ✅ Naming convention: `{Resource}{Operation}` (industry standard)
-- ✅ REST семантика: правильное использование GET/POST/PUT/PATCH/DELETE
-- ✅ Пагинация с metadata для всех списков
-- ✅ Фильтрация и сортировка
-- ✅ Единообразные ошибки с кодами
-- ✅ JWT аутентификация на всех эндпоинтах
-- ✅ Batch операции с partial success
-- ✅ Nested resources для связанных данных
-- ✅ Location header при создании ресурса
-- ✅ Readonly поля защищены от изменения
-- ✅ Версионирование API (/v1/)
+- ✅ REST semantics: proper usage of GET/POST/PUT/PATCH/DELETE
+- ✅ Pagination with metadata for all lists
+- ✅ Filtering and sorting
+- ✅ Uniform errors with codes
+- ✅ JWT authentication on all endpoints
+- ✅ Batch operations with partial success
+- ✅ Nested resources for related data
+- ✅ Location header when creating resource
+- ✅ Readonly fields protected from modification
+- ✅ API versioning (/v1/)
 
 ---
 
-**Это профессиональное REST API, готовое к production deployment! 🚀**
+**This is a professional REST API, ready for production deployment! 🚀**
 
 ---
 
-## 📋 Расширение на другие ресурсы
+## 📋 Extension to Other Resources
 
-Данная спецификация демонстрирует подход на примере модуля **Athletes**. Для полной системы спортивного управления необходимо реализовать аналогичные эндпоинты для:
+This specification demonstrates the approach using the **Athletes** module as an example. For a complete sports management system, similar endpoints should be implemented for:
 
-### Основные ресурсы:
+### Main resources:
 - **Coaches** (`/coaches`, `/coaches/{id}`, etc.)
 - **Users** (`/users`, `/users/{id}`, etc.)
 - **Gyms** (`/gyms`, `/gyms/{id}`, etc.)
 
 ### Nested resources:
-- `/coaches/{coachId}/athletes` ✅ (уже реализовано)
+- `/coaches/{coachId}/athletes` ✅ (already implemented)
 - `/gyms/{gymId}/coaches`
 
-### Применение паттернов:
-Каждый новый ресурс должен следовать тем же принципам:
-- ✅ Content negotiation через Accept header
-- ✅ Пять представлений: базовое (application/json), list, lookup, detail, summary
-- ✅ Восемь схем: {Resource}, {Resource}ListItem, {Resource}Lookup, {Resource}Detail, {Resource}Summary, {Resource}Create, {Resource}Update, {Resource}Patch
-- ✅ Стандартные HTTP методы и коды ответов
-- ✅ Пагинация, фильтрация, сортировка
-- ✅ Единообразные ошибки
-- ✅ JWT аутентификация
+### Pattern application:
+Each new resource should follow the same principles:
+- ✅ Content negotiation via Accept header
+- ✅ Five representations: base (application/json), list, lookup, detail, summary
+- ✅ Eight schemas: {Resource}, {Resource}ListItem, {Resource}Lookup, {Resource}Detail, {Resource}Summary, {Resource}Create, {Resource}Update, {Resource}Patch
+- ✅ Standard HTTP methods and response codes
+- ✅ Pagination, filtering, sorting
+- ✅ Uniform errors
+- ✅ JWT authentication
 
