@@ -38,6 +38,8 @@ application/vnd.api.{resource}.{representation}+json
 ### Для любого ресурса системы:
 ```
 application/json                              # базовое нормализованное представление (default)
+application/vnd.api.{resource}.list+json      # списковое представление (таблицы, денормализация)
+application/vnd.api.{resource}.lookup+json    # для dropdown/select (id + name)
 application/vnd.api.{resource}.detail+json    # расширенное без readonly полей
 application/vnd.api.{resource}.summary+json   # минимальное представление
 ```
@@ -45,10 +47,11 @@ application/vnd.api.{resource}.summary+json   # минимальное пред�
 ### Примеры для разных ресурсов:
 ```
 application/json                              # базовое представление (любой ресурс)
+application/vnd.api.athlete.list+json         # Athletes - списки/таблицы
+application/vnd.api.athlete.lookup+json       # Athletes - dropdown
 application/vnd.api.athlete.detail+json       # Athletes - detail
-application/vnd.api.athlete.summary+json      # Athletes - summary
-application/vnd.api.coach.detail+json         # Coaches - detail
-application/vnd.api.coach.summary+json        # Coaches - summary
+application/vnd.api.coach.list+json           # Coaches - списки/таблицы
+application/vnd.api.coach.lookup+json         # Coaches - dropdown
 ```
 
 ### Анатомия Media Type:
@@ -102,7 +105,52 @@ interface Athlete {
 
 ---
 
-#### 2. `{Resource}Detail` - Расширенное без системных полей
+#### 2. `{Resource}ListItem` - Списковое представление
+**Media Type**: `application/vnd.api.{resource}.list+json`
+
+**Пример для AthleteListItem**:
+
+```typescript
+interface AthleteListItem {
+  id: string;              // UUID
+  name: string;            // имя атлета
+  email: string;           // email атлета
+  phone: string;           // телефон
+  coachId: string;         // UUID тренера
+  coachName: string;       // имя тренера (денормализовано!)
+  createdAt: string;       // ISO 8601
+}
+```
+
+**Use cases**:
+- Списки в таблицах (grid/table views)
+- Денормализованные данные для производительности
+- Когда нужны связанные данные без JOIN на клиенте
+- Списковые endpoint'ы с пагинацией
+
+---
+
+#### 3. `{Resource}Lookup` - Для dropdown/select
+**Media Type**: `application/vnd.api.{resource}.lookup+json`
+
+**Пример для AthleteLookup**:
+
+```typescript
+interface AthleteLookup {
+  id: string;              // UUID
+  name: string;            // отображаемое имя
+}
+```
+
+**Use cases**:
+- Dropdown списки (select boxes)
+- Autocomplete поля
+- Reference fields в формах
+- Минимальный объем данных для выбора
+
+---
+
+#### 4. `{Resource}Detail` - Расширенное без системных полей
 **Media Type**: `application/vnd.api.{resource}.detail+json`
 
 **Пример для AthleteDetail**:
@@ -125,7 +173,7 @@ interface AthleteDetail {
 
 ---
 
-#### 3. `{Resource}Summary` - Минимальное представление
+#### 5. `{Resource}Summary` - Краткое представление
 **Media Type**: `application/vnd.api.{resource}.summary+json`
 
 **Пример для AthleteSummary**:
@@ -139,16 +187,16 @@ interface AthleteSummary {
 ```
 
 **Use cases**:
-- Dropdown списки и select boxes
-- Autocomplete поля
 - Превью результатов поиска
+- Компактные карточки
 - Списки с большим количеством элементов (экономия трафика)
+- Когда нужно чуть больше чем lookup, но меньше чем list
 
 ---
 
 ### Request Models (что отправляет клиент)
 
-#### 4. `{Resource}Create` - Создание ресурса (POST)
+#### 6. `{Resource}Create` - Создание ресурса (POST)
 
 **Пример для AthleteCreate**:
 
@@ -170,7 +218,7 @@ interface AthleteCreate {
 
 ---
 
-#### 5. `{Resource}Update` - Полная замена (PUT)
+#### 7. `{Resource}Update` - Полная замена (PUT)
 
 **Пример для AthleteUpdate**:
 
@@ -193,7 +241,7 @@ interface AthleteUpdate {
 
 ---
 
-#### 6. `{Resource}Patch` - Частичное обновление (PATCH)
+#### 8. `{Resource}Patch` - Частичное обновление (PATCH)
 
 **Пример для AthletePatch**:
 
@@ -222,16 +270,18 @@ interface AthletePatch {
 
 | Схема | HTTP Method | Назначение | Все поля обязательны? |
 |-------|-------------|------------|-----------------------|
-| `{Resource}` | GET | Полное чтение | ✅ Да |
-| `{Resource}Summary` | GET | Краткое чтение | ✅ Да |
+| `{Resource}` | GET | Базовое чтение | ✅ Да |
+| `{Resource}ListItem` | GET | Списки/таблицы | ✅ Да |
+| `{Resource}Lookup` | GET | Dropdown (id+name) | ✅ Да |
 | `{Resource}Detail` | GET | Расширенное чтение | ✅ Да |
+| `{Resource}Summary` | GET | Краткое чтение | ✅ Да |
 | `{Resource}Create` | POST | Создание | ✅ Да (кроме optional) |
 | `{Resource}Update` | PUT | Полная замена | ✅ Да |
 | `{Resource}Patch` | PATCH | Частичное обновление | ❌ Все optional |
 
 **Примеры для разных ресурсов**:
-- `Athlete`, `AthleteSummary`, `AthleteDetail`, `AthleteCreate`, `AthleteUpdate`, `AthletePatch`
-- `Coach`, `CoachSummary`, `CoachDetail`, `CoachCreate`, `CoachUpdate`, `CoachPatch`
+- `Athlete`, `AthleteListItem`, `AthleteLookup`, `AthleteDetail`, `AthleteSummary`, `AthleteCreate`, `AthleteUpdate`, `AthletePatch`
+- `Coach`, `CoachListItem`, `CoachLookup`, `CoachDetail`, `CoachSummary`, `CoachCreate`, `CoachUpdate`, `CoachPatch`
 
 **Это НЕ случайность** - это industry standard, используемый в:
 - REST API Best Practices (Microsoft, Google)
@@ -250,7 +300,11 @@ interface AthletePatch {
 - Пагинация: `page`, `limit`
 - Фильтрация: `coachId`, `search`
 - Сортировка: `sort` (name_asc, name_desc, created_asc, created_desc)
-- Accept header поддержка всех представлений
+- Accept header определяет представление:
+  - `application/vnd.api.{resource}.list+json` → `AthleteListItem[]` (для таблиц, с денормализацией)
+  - `application/vnd.api.{resource}.lookup+json` → `AthleteLookup[]` (для dropdown)
+  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary[]` (компактное)
+  - `application/json` → `Athlete[]` (базовое, default)
 - **Ответ**: 200 OK с массивом + pagination metadata
 
 ---
@@ -457,16 +511,25 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ## 🎯 Типичные сценарии использования
 
-### Сценарий 1: Dropdown список атлетов
+### Сценарий 1: Dropdown список атлетов для select
 ```http
-GET /athletes?view=summary&limit=50
-Accept: application/vnd.api.athlete.summary+json
+GET /athletes?limit=100
+Accept: application/vnd.api.athlete.lookup+json
 ```
-Вернет только `id`, `name`, `email` - экономия трафика.
+Вернет только `id`, `name` - минимум данных для выбора.
 
 ---
 
-### Сценарий 2: Форма редактирования атлета
+### Сценарий 2: Таблица атлетов с именем тренера
+```http
+GET /athletes?page=1&limit=20
+Accept: application/vnd.api.athlete.list+json
+```
+Вернет денормализованные данные включая `coachName` - без дополнительных запросов на клиенте.
+
+---
+
+### Сценарий 3: Форма редактирования атлета
 ```http
 GET /athletes/550e8400...
 Accept: application/vnd.api.athlete.detail+json
@@ -475,7 +538,7 @@ Accept: application/vnd.api.athlete.detail+json
 
 ---
 
-### Сценарий 3: Admin панель с базовыми данными
+### Сценарий 4: Admin панель с базовыми данными
 ```http
 GET /athletes/550e8400...
 Accept: application/json
@@ -484,7 +547,7 @@ Accept: application/json
 
 ---
 
-### Сценарий 4: Создать нового атлета
+### Сценарий 5: Создать нового атлета
 ```http
 POST /athletes
 Content-Type: application/json
@@ -513,7 +576,7 @@ Location: /v1/athletes/550e8400...
 
 ---
 
-### Сценарий 5: Обновить только телефон
+### Сценарий 6: Обновить только телефон
 ```http
 PATCH /athletes/550e8400...
 Content-Type: application/json
@@ -527,7 +590,7 @@ Content-Type: application/json
 
 ---
 
-### Сценарий 6: Удалить нескольких атлетов
+### Сценарий 7: Удалить нескольких атлетов
 ```http
 DELETE /athletes/batch
 Content-Type: application/json
@@ -555,9 +618,11 @@ Content-Type: application/json
 ### Server-side parsing Accept header
 
 ```typescript
-function determineRepresentation(acceptHeader: string): 'base' | 'detail' | 'summary' {
-  if (acceptHeader.includes('athlete.summary+json')) return 'summary';
+function determineRepresentation(acceptHeader: string): 'base' | 'list' | 'lookup' | 'detail' | 'summary' {
+  if (acceptHeader.includes('athlete.list+json')) return 'list';
+  if (acceptHeader.includes('athlete.lookup+json')) return 'lookup';
   if (acceptHeader.includes('athlete.detail+json')) return 'detail';
+  if (acceptHeader.includes('athlete.summary+json')) return 'summary';
   if (acceptHeader.includes('application/json')) return 'base'; // default
   
   throw new NotAcceptableError(406, 'Unsupported Accept header');
@@ -569,6 +634,8 @@ function determineRepresentation(acceptHeader: string): 'base' | 'detail' | 'sum
 ```typescript
 export const MediaTypes = {
   JSON: 'application/json', // базовое представление (default)
+  ATHLETE_LIST: 'application/vnd.api.athlete.list+json',
+  ATHLETE_LOOKUP: 'application/vnd.api.athlete.lookup+json',
   ATHLETE_DETAIL: 'application/vnd.api.athlete.detail+json',
   ATHLETE_SUMMARY: 'application/vnd.api.athlete.summary+json',
 } as const;
@@ -589,6 +656,8 @@ app.use((req, res, next) => {
         message: 'Unsupported media type in Accept header',
         supported: [
           MediaTypes.JSON,
+          MediaTypes.ATHLETE_LIST,
+          MediaTypes.ATHLETE_LOOKUP,
           MediaTypes.ATHLETE_DETAIL,
           MediaTypes.ATHLETE_SUMMARY
         ]
@@ -646,8 +715,8 @@ GET /athletes?fields=id,name,email,phone
 
 - ✅ Content negotiation через **Accept header**
 - ✅ Media Type: `application/json` (базовое) и `application/vnd.api.{resource}.{representation}+json` (специальные)
-- ✅ Три представления: **базовое** (application/json), **detail**, **summary**
-- ✅ Шесть схем: **Athlete**, **AthleteSummary**, **AthleteDetail**, **AthleteCreate**, **AthleteUpdate**, **AthletePatch**
+- ✅ Пять представлений: **базовое** (application/json), **list**, **lookup**, **detail**, **summary**
+- ✅ Восемь схем: **Athlete**, **AthleteListItem**, **AthleteLookup**, **AthleteDetail**, **AthleteSummary**, **AthleteCreate**, **AthleteUpdate**, **AthletePatch**
 - ✅ Naming convention: `{Resource}{Operation}` (industry standard)
 - ✅ REST семантика: правильное использование GET/POST/PUT/PATCH/DELETE
 - ✅ Пагинация с metadata для всех списков
@@ -682,8 +751,8 @@ GET /athletes?fields=id,name,email,phone
 ### Применение паттернов:
 Каждый новый ресурс должен следовать тем же принципам:
 - ✅ Content negotiation через Accept header
-- ✅ Три представления: базовое (application/json), detail, summary
-- ✅ Шесть схем: {Resource}, {Resource}Summary, {Resource}Detail, {Resource}Create, {Resource}Update, {Resource}Patch
+- ✅ Пять представлений: базовое (application/json), list, lookup, detail, summary
+- ✅ Восемь схем: {Resource}, {Resource}ListItem, {Resource}Lookup, {Resource}Detail, {Resource}Summary, {Resource}Create, {Resource}Update, {Resource}Patch
 - ✅ Стандартные HTTP методы и коды ответов
 - ✅ Пагинация, фильтрация, сортировка
 - ✅ Единообразные ошибки
