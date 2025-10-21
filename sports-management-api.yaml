@@ -1,0 +1,1284 @@
+openapi: 3.0.3
+info:
+  title: Sports Management System API
+  version: 1.0.0
+  description: |
+    Professional REST API for sports management system with content negotiation via Accept headers.
+    
+    ## Design Principles
+    
+    ### Content Negotiation
+    Uses Accept headers to control resource representations:
+    - `application/vnd.api.{resource}.full+json` - Complete data with all fields
+    - `application/vnd.api.{resource}.detail+json` - Extended data without readonly fields
+    - `application/vnd.api.{resource}.summary+json` - Minimal data (id, name, email)
+    - `application/json` - Fallback to full representation
+    
+    ### Schema Naming Conventions
+    Follows industry-standard DTO naming patterns:
+    - **{Resource}** - Full response model (GET)
+    - **{Resource}Summary** - Minimal response model (GET with summary Accept)
+    - **{Resource}Detail** - Extended response model (GET with detail Accept)
+    - **{Resource}Create** - Request model for resource creation (POST)
+    - **{Resource}Update** - Request model for full replacement (PUT)
+    - **{Resource}Patch** - Request model for partial update (PATCH)
+    
+    ### HTTP Method Semantics
+    - **GET** - Retrieve (idempotent, safe)
+    - **POST** - Create (non-idempotent, returns 201 + Location header)
+    - **PUT** - Full replacement (idempotent, requires all fields)
+    - **PATCH** - Partial update (non-idempotent, optional fields)
+    - **DELETE** - Remove (idempotent, returns 204)
+    
+  contact:
+    name: API Support
+    email: api@example.com
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+  - url: https://api-staging.example.com/v1
+    description: Staging server
+
+tags:
+  - name: Athletes
+    description: Operations related to athlete management
+  - name: Coaches
+    description: Operations related to coach management
+  - name: Training Sessions
+    description: Operations related to training session management
+  - name: Subscriptions
+    description: Operations related to subscription management
+
+paths:
+  /athletes:
+    get:
+      tags:
+        - Athletes
+      summary: List all athletes
+      description: |
+        Retrieve a paginated list of athletes with optional filtering and sorting.
+        Use Accept header to control the representation of each athlete in the list.
+      operationId: listAthletes
+      parameters:
+        - name: page
+          in: query
+          description: Page number (1-indexed)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: coachId
+          in: query
+          description: Filter athletes by coach ID
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          description: Search in name, email, phone fields
+          schema:
+            type: string
+            minLength: 2
+        - name: sort
+          in: query
+          description: Sort field and direction
+          schema:
+            type: string
+            enum: [name_asc, name_desc, created_asc, created_desc]
+            default: created_desc
+        - name: Accept
+          in: header
+          description: |
+            Media type for response representation:
+            - `application/vnd.api.athlete.full+json` - Complete data (default)
+            - `application/vnd.api.athlete.detail+json` - Extended without readonly
+            - `application/vnd.api.athlete.summary+json` - Minimal data
+            - `application/json` - Fallback to full
+          required: false
+          schema:
+            type: string
+            enum:
+              - application/vnd.api.athlete.full+json
+              - application/vnd.api.athlete.detail+json
+              - application/vnd.api.athlete.summary+json
+              - application/json
+            default: application/vnd.api.athlete.full+json
+      responses:
+        '200':
+          description: Successful response with athletes list
+          content:
+            # Full representation (default)
+            application/vnd.api.athlete.full+json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Athlete'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+              examples:
+                full:
+                  summary: Full representation
+                  value:
+                    data:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        coachId: "660e8400-e29b-41d4-a716-446655440001"
+                        name: "John Doe"
+                        email: "john.doe@example.com"
+                        phone: "+1234567890"
+                        telegram: "@johndoe"
+                        createdAt: "2024-01-15T10:30:00Z"
+                        updatedAt: "2024-01-15T10:30:00Z"
+                    pagination:
+                      page: 1
+                      limit: 20
+                      total: 45
+                      totalPages: 3
+            
+            # Detail representation
+            application/vnd.api.athlete.detail+json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleteDetail'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+              examples:
+                detail:
+                  summary: Detail representation
+                  value:
+                    data:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        name: "John Doe"
+                        email: "john.doe@example.com"
+                        phone: "+1234567890"
+                        telegram: "@johndoe"
+                    pagination:
+                      page: 1
+                      limit: 20
+                      total: 45
+                      totalPages: 3
+            
+            # Summary representation
+            application/vnd.api.athlete.summary+json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleteSummary'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+              examples:
+                summary:
+                  summary: Summary representation
+                  value:
+                    data:
+                      - id: "550e8400-e29b-41d4-a716-446655440000"
+                        name: "John Doe"
+                        email: "john.doe@example.com"
+                    pagination:
+                      page: 1
+                      limit: 20
+                      total: 45
+                      totalPages: 3
+            
+            # Fallback to JSON
+            application/json:
+              schema:
+                type: object
+                required:
+                  - data
+                  - pagination
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Athlete'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Athletes
+      summary: Create a new athlete
+      description: |
+        Create a new athlete profile. The server will generate `id`, `createdAt`, and `updatedAt`.
+        Request body uses AthleteCreate schema (without readonly fields).
+      operationId: createAthlete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AthleteCreate'
+            examples:
+              minimal:
+                summary: Minimal required fields
+                value:
+                  coachId: "660e8400-e29b-41d4-a716-446655440001"
+                  name: "Jane Smith"
+                  email: "jane.smith@example.com"
+                  phone: "+1234567891"
+              full:
+                summary: All fields provided
+                value:
+                  coachId: "660e8400-e29b-41d4-a716-446655440001"
+                  name: "Jane Smith"
+                  email: "jane.smith@example.com"
+                  phone: "+1234567891"
+                  telegram: "@janesmith"
+      responses:
+        '201':
+          description: Athlete created successfully
+          headers:
+            Location:
+              description: URL of the created athlete resource
+              schema:
+                type: string
+                format: uri
+                example: "/v1/athletes/550e8400-e29b-41d4-a716-446655440002"
+          content:
+            application/vnd.api.athlete.full+json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440002"
+                coachId: "660e8400-e29b-41d4-a716-446655440001"
+                name: "Jane Smith"
+                email: "jane.smith@example.com"
+                phone: "+1234567891"
+                telegram: "@janesmith"
+                createdAt: "2024-01-20T14:25:00Z"
+                updatedAt: "2024-01-20T14:25:00Z"
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+  /athletes/{athleteId}:
+    parameters:
+      - name: athleteId
+        in: path
+        required: true
+        description: Unique identifier of the athlete
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      tags:
+        - Athletes
+      summary: Get athlete by ID
+      description: |
+        Retrieve information about a specific athlete.
+        Use Accept header to control the representation:
+        
+        - **full** (default): Complete data including coachId, timestamps
+        - **detail**: Extended data without readonly fields (no coachId, timestamps)
+        - **summary**: Minimal data (id, name, email only)
+        
+        Useful for different UI contexts:
+        - **summary**: Dropdowns, autocomplete, search results
+        - **detail**: Profile cards, forms, user-facing displays
+        - **full**: Admin panels, auditing, debugging, data export
+      operationId: getAthleteById
+      parameters:
+        - name: Accept
+          in: header
+          description: |
+            Media type for response representation:
+            - `application/vnd.api.athlete.full+json` - Complete (default)
+            - `application/vnd.api.athlete.detail+json` - Extended without readonly
+            - `application/vnd.api.athlete.summary+json` - Minimal
+            - `application/json` - Fallback to full
+          required: false
+          schema:
+            type: string
+            enum:
+              - application/vnd.api.athlete.full+json
+              - application/vnd.api.athlete.detail+json
+              - application/vnd.api.athlete.summary+json
+              - application/json
+            default: application/vnd.api.athlete.full+json
+          examples:
+            full:
+              summary: Request full representation
+              value: application/vnd.api.athlete.full+json
+            detail:
+              summary: Request detail representation
+              value: application/vnd.api.athlete.detail+json
+            summary:
+              summary: Request summary representation
+              value: application/vnd.api.athlete.summary+json
+      
+      responses:
+        '200':
+          description: Athlete found
+          content:
+            # Full representation (default)
+            application/vnd.api.athlete.full+json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+              examples:
+                full:
+                  summary: Complete athlete data
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440000"
+                    coachId: "660e8400-e29b-41d4-a716-446655440001"
+                    name: "John Doe"
+                    email: "john.doe@example.com"
+                    phone: "+1234567890"
+                    telegram: "@johndoe"
+                    createdAt: "2024-01-15T10:30:00Z"
+                    updatedAt: "2024-01-15T10:30:00Z"
+            
+            # Detail representation
+            application/vnd.api.athlete.detail+json:
+              schema:
+                $ref: '#/components/schemas/AthleteDetail'
+              examples:
+                detail:
+                  summary: Extended without readonly fields
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440000"
+                    name: "John Doe"
+                    email: "john.doe@example.com"
+                    phone: "+1234567890"
+                    telegram: "@johndoe"
+            
+            # Summary representation
+            application/vnd.api.athlete.summary+json:
+              schema:
+                $ref: '#/components/schemas/AthleteSummary'
+              examples:
+                summary:
+                  summary: Minimal athlete data
+                  value:
+                    id: "550e8400-e29b-41d4-a716-446655440000"
+                    name: "John Doe"
+                    email: "john.doe@example.com"
+            
+            # Fallback
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - Athletes
+      summary: Update athlete (full replacement)
+      description: |
+        Replace all athlete data. Requires ALL fields (except readonly).
+        Uses AthleteUpdate schema - all fields are required.
+        Missing fields will result in validation error.
+        
+        **Note**: This is idempotent - same request produces same result.
+      operationId: updateAthleteFull
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AthleteUpdate'
+            examples:
+              complete:
+                summary: Complete update with all fields
+                value:
+                  coachId: "660e8400-e29b-41d4-a716-446655440001"
+                  name: "John Doe Updated"
+                  email: "new.email@example.com"
+                  phone: "+9876543210"
+                  telegram: null
+      responses:
+        '200':
+          description: Athlete updated successfully
+          content:
+            application/vnd.api.athlete.full+json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+    patch:
+      tags:
+        - Athletes
+      summary: Partially update athlete
+      description: |
+        Update specific fields of an athlete. Only provided fields will be updated.
+        Uses AthletePatch schema - all fields are optional, but at least one is required.
+        
+        **Note**: This is NOT idempotent if concurrent updates occur.
+      operationId: updateAthletePartial
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AthletePatch'
+            examples:
+              updatePhone:
+                summary: Update only phone
+                value:
+                  phone: "+9876543210"
+              updateMultiple:
+                summary: Update multiple fields
+                value:
+                  email: "newemail@example.com"
+                  telegram: "@newhandle"
+              removeTelegram:
+                summary: Remove telegram (set to null)
+                value:
+                  telegram: null
+      responses:
+        '200':
+          description: Athlete updated successfully
+          content:
+            application/vnd.api.athlete.full+json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Athlete'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Athletes
+      summary: Delete athlete
+      description: |
+        Permanently delete an athlete profile.
+        Returns 204 No Content on success.
+        Returns 409 Conflict if athlete has dependencies (e.g., active training sessions).
+        
+        **Note**: This is idempotent - deleting same athlete twice returns 404 second time.
+      operationId: deleteAthlete
+      responses:
+        '204':
+          description: Athlete deleted successfully (no content)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Cannot delete (has dependencies)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  code: "ATHLETE_HAS_DEPENDENCIES"
+                  message: "Cannot delete athlete with active training sessions"
+                  details:
+                    dependencies:
+                      - resource: "training_sessions"
+                        count: 5
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+  /athletes/batch:
+    delete:
+      tags:
+        - Athletes
+      summary: Batch delete athletes
+      description: |
+        Delete multiple athletes in one request (up to 100).
+        Returns partial success - some deletions may fail while others succeed.
+      operationId: batchDeleteAthletes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  minItems: 1
+                  maxItems: 100
+                  description: Array of athlete IDs to delete
+            example:
+              ids:
+                - "550e8400-e29b-41d4-a716-446655440000"
+                - "550e8400-e29b-41d4-a716-446655440001"
+      responses:
+        '200':
+          description: Batch operation completed (may include partial failures)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                    description: Successfully deleted athlete IDs
+                  failed:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        reason:
+                          type: string
+                    description: Failed deletions with reasons
+              example:
+                deleted:
+                  - "550e8400-e29b-41d4-a716-446655440000"
+                failed:
+                  - id: "550e8400-e29b-41d4-a716-446655440001"
+                    reason: "Athlete not found"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+  /coaches/{coachId}/athletes:
+    get:
+      tags:
+        - Athletes
+      summary: Get athletes by coach
+      description: |
+        Retrieve all athletes for a specific coach with pagination.
+        Supports same Accept header variations as /athletes endpoint.
+      operationId: getAthletesByCoach
+      parameters:
+        - name: coachId
+          in: path
+          required: true
+          description: Unique identifier of the coach
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: Accept
+          in: header
+          description: Media type for response representation
+          required: false
+          schema:
+            type: string
+            enum:
+              - application/vnd.api.athlete.full+json
+              - application/vnd.api.athlete.detail+json
+              - application/vnd.api.athlete.summary+json
+              - application/json
+            default: application/vnd.api.athlete.full+json
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/vnd.api.athlete.full+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Athlete'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+            application/vnd.api.athlete.detail+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleteDetail'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+            application/vnd.api.athlete.summary+json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AthleteSummary'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Athlete'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      security:
+        - bearerAuth: []
+
+components:
+  schemas:
+    # ==========================================
+    # RESPONSE MODELS (what server returns)
+    # ==========================================
+    
+    Athlete:
+      type: object
+      description: |
+        **Full representation** of an athlete (default).
+        Includes all fields: mutable data + readonly metadata.
+        Used with: `application/vnd.api.athlete.full+json`
+        
+        Use cases:
+        - Admin panels
+        - Debugging and auditing
+        - Data export
+        - When you need complete information including relationships and timestamps
+      required:
+        - id
+        - coachId
+        - name
+        - email
+        - phone
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier (generated by server)
+          readOnly: true
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        coachId:
+          type: string
+          format: uuid
+          description: Reference to the coach (User)
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Full name of the athlete
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email address (must be unique)
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+          example: "+1234567890"
+        telegram:
+          type: string
+          nullable: true
+          pattern: '^@[a-zA-Z0-9_]{5,32}$'
+          description: Telegram username (optional)
+          example: "@johndoe"
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp when athlete was created
+          readOnly: true
+          example: "2024-01-15T10:30:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of last update
+          readOnly: true
+          example: "2024-01-15T10:30:00Z"
+
+    AthleteDetail:
+      type: object
+      description: |
+        **Extended representation** without readonly/system fields.
+        Excludes: coachId, createdAt, updatedAt
+        Used with: `application/vnd.api.athlete.detail+json`
+        
+        Use cases:
+        - Profile cards and displays
+        - Edit forms (shows what user can modify)
+        - User-facing interfaces where system fields are not relevant
+        - Future: Can include embedded relationships (e.g., subscription)
+      required:
+        - id
+        - name
+        - email
+        - phone
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Full name of the athlete
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email address
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+          example: "+1234567890"
+        telegram:
+          type: string
+          nullable: true
+          pattern: '^@[a-zA-Z0-9_]{5,32}$'
+          description: Telegram username (optional)
+          example: "@johndoe"
+
+    AthleteSummary:
+      type: object
+      description: |
+        **Minimal representation** with essential identification data only.
+        Used with: `application/vnd.api.athlete.summary+json`
+        
+        Use cases:
+        - Dropdown lists and select boxes
+        - Autocomplete fields
+        - Search results previews
+        - Any UI where minimal data reduces payload size
+        - Lists with many items where full data is not needed
+      required:
+        - id
+        - name
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Full name of the athlete
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "john.doe@example.com"
+
+    # ==========================================
+    # REQUEST MODELS (what client sends)
+    # ==========================================
+
+    AthleteCreate:
+      type: object
+      description: |
+        **Request schema for creating a new athlete** (POST /athletes).
+        
+        Excludes readonly fields:
+        - id (generated by server)
+        - createdAt (generated by server)
+        - updatedAt (generated by server)
+        
+        All fields except telegram are required.
+        Server will generate missing fields and return full Athlete object.
+      required:
+        - coachId
+        - name
+        - email
+        - phone
+      properties:
+        coachId:
+          type: string
+          format: uuid
+          description: ID of the coach managing this athlete
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Full name of the athlete
+          example: "Jane Smith"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email address (must be unique in system)
+          example: "jane.smith@example.com"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format (e.g., +1234567890)
+          example: "+1234567891"
+        telegram:
+          type: string
+          nullable: true
+          pattern: '^@[a-zA-Z0-9_]{5,32}$'
+          description: Telegram username starting with @ (optional)
+          example: "@janesmith"
+
+    AthleteUpdate:
+      type: object
+      description: |
+        **Request schema for full replacement** (PUT /athletes/{id}).
+        
+        All fields are REQUIRED (except telegram which can be null).
+        This replaces the entire resource - missing fields would become null/undefined.
+        
+        Excludes readonly fields:
+        - id (cannot be changed)
+        - createdAt (immutable)
+        - updatedAt (auto-updated by server)
+        
+        Use PATCH for partial updates instead if you don't want to send all fields.
+      required:
+        - coachId
+        - name
+        - email
+        - phone
+      properties:
+        coachId:
+          type: string
+          format: uuid
+          description: ID of the coach managing this athlete
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Full name of the athlete
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email address
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+          example: "+1234567890"
+        telegram:
+          type: string
+          nullable: true
+          pattern: '^@[a-zA-Z0-9_]{5,32}$'
+          description: Telegram username (can be null to remove)
+          example: null
+
+    AthletePatch:
+      type: object
+      description: |
+        **Request schema for partial update** (PATCH /athletes/{id}).
+        
+        All fields are OPTIONAL - send only what you want to change.
+        At least ONE field must be provided.
+        
+        Excludes readonly fields:
+        - id (cannot be changed)
+        - createdAt (immutable)
+        - updatedAt (auto-updated by server)
+        
+        Perfect for updating individual fields without touching the rest.
+      minProperties: 1
+      properties:
+        coachId:
+          type: string
+          format: uuid
+          description: ID of the coach managing this athlete
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Full name of the athlete
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Email address
+          example: "john.doe@example.com"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+          example: "+1234567890"
+        telegram:
+          type: string
+          nullable: true
+          pattern: '^@[a-zA-Z0-9_]{5,32}$'
+          description: Telegram username (set to null to remove)
+          example: "@johndoe"
+
+    # ==========================================
+    # UTILITY SCHEMAS
+    # ==========================================
+
+    Pagination:
+      type: object
+      description: Pagination metadata for list responses
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          description: Current page number (1-indexed)
+          example: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Number of items per page
+          example: 20
+        total:
+          type: integer
+          minimum: 0
+          description: Total number of items across all pages
+          example: 45
+        totalPages:
+          type: integer
+          minimum: 0
+          description: Total number of pages (calculated as ceil(total / limit))
+          example: 3
+
+    Error:
+      type: object
+      description: Standard error response format
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: Human-readable error message
+              example: "Request validation failed"
+            details:
+              type: object
+              description: Additional context about the error
+              additionalProperties: true
+              example:
+                field: "email"
+                reason: "Invalid format"
+            path:
+              type: string
+              description: Request path where error occurred
+              example: "/v1/athletes"
+            timestamp:
+              type: string
+              format: date-time
+              description: ISO 8601 timestamp when error occurred
+              example: "2024-01-20T14:25:00Z"
+
+    ValidationError:
+      type: object
+      description: Validation error response (422)
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+            - validationErrors
+          properties:
+            code:
+              type: string
+              enum: [VALIDATION_ERROR]
+              description: Error code
+              example: "VALIDATION_ERROR"
+            message:
+              type: string
+              description: General error message
+              example: "Request validation failed"
+            validationErrors:
+              type: array
+              description: Array of field-specific validation errors
+              items:
+                type: object
+                required:
+                  - field
+                  - message
+                  - code
+                properties:
+                  field:
+                    type: string
+                    description: Field name that failed validation
+                    example: "email"
+                  message:
+                    type: string
+                    description: Error message for this field
+                    example: "Invalid email format"
+                  code:
+                    type: string
+                    description: Machine-readable error code for this field
+                    example: "INVALID_FORMAT"
+
+  # ==========================================
+  # REUSABLE RESPONSES
+  # ==========================================
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters or malformed JSON
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "BAD_REQUEST"
+              message: "Invalid request parameters"
+              details:
+                parameter: "page"
+                reason: "Must be a positive integer"
+              path: "/v1/athletes"
+              timestamp: "2024-01-20T14:25:00Z"
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "UNAUTHORIZED"
+              message: "Authentication required"
+              details:
+                reason: "Missing or invalid JWT token"
+              path: "/v1/athletes"
+              timestamp: "2024-01-20T14:25:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "NOT_FOUND"
+              message: "Athlete not found"
+              details:
+                athleteId: "550e8400-e29b-41d4-a716-446655440000"
+              path: "/v1/athletes/550e8400-e29b-41d4-a716-446655440000"
+              timestamp: "2024-01-20T14:25:00Z"
+
+    NotAcceptable:
+      description: Not Acceptable - unsupported Accept header media type
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "NOT_ACCEPTABLE"
+              message: "Unsupported media type in Accept header"
+              details:
+                requested: "application/xml"
+                supported:
+                  - "application/vnd.api.athlete.full+json"
+                  - "application/vnd.api.athlete.detail+json"
+                  - "application/vnd.api.athlete.summary+json"
+                  - "application/json"
+              path: "/v1/athletes/550e8400-e29b-41d4-a716-446655440000"
+              timestamp: "2024-01-20T14:25:00Z"
+
+    Conflict:
+      description: Conflict - resource already exists or cannot be modified
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "CONFLICT"
+              message: "Email already exists"
+              details:
+                field: "email"
+                value: "john.doe@example.com"
+              path: "/v1/athletes"
+              timestamp: "2024-01-20T14:25:00Z"
+
+    UnprocessableEntity:
+      description: Unprocessable Entity - validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Request validation failed"
+              validationErrors:
+                - field: "email"
+                  message: "Invalid email format"
+                  code: "INVALID_FORMAT"
+                - field: "phone"
+                  message: "Phone number must be in E.164 format"
+                  code: "INVALID_FORMAT"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "INTERNAL_SERVER_ERROR"
+              message: "An unexpected error occurred"
+              details:
+                errorId: "err_123456789"
+              path: "/v1/athletes"
+              timestamp: "2024-01-20T14:25:00Z"
+
+  # ==========================================
+  # SECURITY SCHEMES
+  # ==========================================
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT Bearer token authentication.
+        
+        Include the token in the Authorization header:
+        ```
+        Authorization: Bearer <your-jwt-token>
+        ```
+        
+        All endpoints require authentication.
+        Token should contain user identity and permissions.
+
