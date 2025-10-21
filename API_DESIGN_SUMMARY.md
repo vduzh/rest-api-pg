@@ -615,56 +615,382 @@ Content-Type: application/json
 
 ## 🔧 Рекомендации по реализации
 
-### Server-side parsing Accept header
+### Client-side (React + TypeScript)
+
+#### Media Type константы
 
 ```typescript
-function determineRepresentation(acceptHeader: string): 'base' | 'list' | 'lookup' | 'detail' | 'summary' {
-  if (acceptHeader.includes('athlete.list+json')) return 'list';
-  if (acceptHeader.includes('athlete.lookup+json')) return 'lookup';
-  if (acceptHeader.includes('athlete.detail+json')) return 'detail';
-  if (acceptHeader.includes('athlete.summary+json')) return 'summary';
-  if (acceptHeader.includes('application/json')) return 'base'; // default
-  
-  throw new NotAcceptableError(406, 'Unsupported Accept header');
-}
-```
-
-### Media Type константы
-
-```typescript
+// src/api/mediaTypes.ts
 export const MediaTypes = {
   JSON: 'application/json', // базовое представление (default)
   ATHLETE_LIST: 'application/vnd.api.athlete.list+json',
   ATHLETE_LOOKUP: 'application/vnd.api.athlete.lookup+json',
   ATHLETE_DETAIL: 'application/vnd.api.athlete.detail+json',
   ATHLETE_SUMMARY: 'application/vnd.api.athlete.summary+json',
+  
+  COACH_LIST: 'application/vnd.api.coach.list+json',
+  COACH_LOOKUP: 'application/vnd.api.coach.lookup+json',
+  COACH_DETAIL: 'application/vnd.api.coach.detail+json',
 } as const;
+
+export type MediaType = typeof MediaTypes[keyof typeof MediaTypes];
 ```
 
-### Middleware для Content Negotiation
+#### API клиент с Accept header
 
 ```typescript
-app.use((req, res, next) => {
-  try {
-    const accept = req.headers.accept || 'application/json';
-    req.representation = determineRepresentation(accept);
-    next();
-  } catch (error) {
-    res.status(406).json({
-      error: {
-        code: 'NOT_ACCEPTABLE',
-        message: 'Unsupported media type in Accept header',
-        supported: [
-          MediaTypes.JSON,
-          MediaTypes.ATHLETE_LIST,
-          MediaTypes.ATHLETE_LOOKUP,
-          MediaTypes.ATHLETE_DETAIL,
-          MediaTypes.ATHLETE_SUMMARY
-        ]
-      }
+// src/api/client.ts
+import { MediaTypes, MediaType } from './mediaTypes';
+
+export class ApiClient {
+  private baseUrl: string;
+  private token: string | null = null;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
+
+  setToken(token: string) {
+    this.token = token;
+  }
+
+  private async request<T>(
+    url: string, 
+    options: RequestInit = {},
+    acceptType: MediaType = MediaTypes.JSON
+  ): Promise<T> {
+    const headers: HeadersInit = {
+      'Accept': acceptType,
+      'Content-Type': 'application/json',
+      ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+      ...options.headers,
+    };
+
+    const response = await fetch(`${this.baseUrl}${url}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new ApiError(response.status, error);
+    }
+
+    return response.json();
+  }
+
+  // Примеры методов
+  async getAthletes(params: { page?: number; limit?: number }, acceptType: MediaType = MediaTypes.ATHLETE_LIST) {
+    const query = new URLSearchParams(params as any).toString();
+    return this.request<PaginatedResponse<AthleteListItem>>(`/v1/athletes?${query}`, {}, acceptType);
+  }
+
+  async getAthletesForDropdown() {
+    return this.request<PaginatedResponse<AthleteLookup>>('/v1/athletes?limit=100', {}, MediaTypes.ATHLETE_LOOKUP);
+  }
+
+  async getAthleteById(id: string, acceptType: MediaType = MediaTypes.JSON) {
+    return this.request<Athlete>(`/v1/athletes/${id}`, {}, acceptType);
+  }
+
+  async createAthlete(data: AthleteCreate) {
+    return this.request<Athlete>('/v1/athletes', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
-});
+}
+
+class ApiError extends Error {
+  constructor(public status: number, public error: any) {
+    super(error.error?.message || 'API Error');
+  }
+}
+```
+
+#### React Hook пример
+
+```typescript
+// src/hooks/useAthletes.ts
+import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+import { MediaTypes } from '@/api/mediaTypes';
+
+export function useAthletesList(page: number = 1, limit: number = 20) {
+  return useQuery({
+    queryKey: ['athletes', 'list', page, limit],
+    queryFn: () => apiClient.getAthletes({ page, limit }, MediaTypes.ATHLETE_LIST),
+  });
+}
+
+export function useAthletesLookup() {
+  return useQuery({
+    queryKey: ['athletes', 'lookup'],
+    queryFn: () => apiClient.getAthletesForDropdown(),
+  });
+}
+
+export function useAthleteDetail(id: string) {
+  return useQuery({
+    queryKey: ['athletes', 'detail', id],
+    queryFn: () => apiClient.getAthleteById(id, MediaTypes.ATHLETE_DETAIL),
+  });
+}
+```
+
+---
+
+### Server-side (Spring Boot + Java)
+
+#### Media Type константы
+
+```java
+// src/main/java/com/example/api/constants/MediaTypes.java
+package com.example.api.constants;
+
+import org.springframework.http.MediaType;
+
+public final class MediaTypes {
+    private MediaTypes() {}
+
+    // Base
+    public static final String APPLICATION_JSON_VALUE = MediaType.APPLICATION_JSON_VALUE;
+    public static final MediaType APPLICATION_JSON = MediaType.APPLICATION_JSON;
+
+    // Athletes
+    public static final String ATHLETE_LIST_VALUE = "application/vnd.api.athlete.list+json";
+    public static final MediaType ATHLETE_LIST = MediaType.parseMediaType(ATHLETE_LIST_VALUE);
+    
+    public static final String ATHLETE_LOOKUP_VALUE = "application/vnd.api.athlete.lookup+json";
+    public static final MediaType ATHLETE_LOOKUP = MediaType.parseMediaType(ATHLETE_LOOKUP_VALUE);
+    
+    public static final String ATHLETE_DETAIL_VALUE = "application/vnd.api.athlete.detail+json";
+    public static final MediaType ATHLETE_DETAIL = MediaType.parseMediaType(ATHLETE_DETAIL_VALUE);
+    
+    public static final String ATHLETE_SUMMARY_VALUE = "application/vnd.api.athlete.summary+json";
+    public static final MediaType ATHLETE_SUMMARY = MediaType.parseMediaType(ATHLETE_SUMMARY_VALUE);
+
+    // Coaches
+    public static final String COACH_LIST_VALUE = "application/vnd.api.coach.list+json";
+    public static final MediaType COACH_LIST = MediaType.parseMediaType(COACH_LIST_VALUE);
+    
+    public static final String COACH_LOOKUP_VALUE = "application/vnd.api.coach.lookup+json";
+    public static final MediaType COACH_LOOKUP = MediaType.parseMediaType(COACH_LOOKUP_VALUE);
+}
+```
+
+#### Content Negotiation Helper
+
+```java
+// src/main/java/com/example/api/util/ContentNegotiationHelper.java
+package com.example.api.util;
+
+import com.example.api.constants.MediaTypes;
+import com.example.api.exception.NotAcceptableException;
+import org.springframework.http.MediaType;
+
+import java.util.List;
+
+public class ContentNegotiationHelper {
+    
+    public enum RepresentationType {
+        BASE, LIST, LOOKUP, DETAIL, SUMMARY
+    }
+    
+    public static RepresentationType determineRepresentation(String acceptHeader) {
+        if (acceptHeader == null || acceptHeader.isEmpty()) {
+            return RepresentationType.BASE;
+        }
+        
+        List<MediaType> mediaTypes = MediaType.parseMediaTypes(acceptHeader);
+        
+        for (MediaType mediaType : mediaTypes) {
+            String value = mediaType.toString();
+            
+            if (value.contains(".list+json")) {
+                return RepresentationType.LIST;
+            }
+            if (value.contains(".lookup+json")) {
+                return RepresentationType.LOOKUP;
+            }
+            if (value.contains(".detail+json")) {
+                return RepresentationType.DETAIL;
+            }
+            if (value.contains(".summary+json")) {
+                return RepresentationType.SUMMARY;
+            }
+            if (value.contains("application/json")) {
+                return RepresentationType.BASE;
+            }
+        }
+        
+        throw new NotAcceptableException("Unsupported Accept header: " + acceptHeader);
+    }
+}
+```
+
+#### Controller с Content Negotiation
+
+```java
+// src/main/java/com/example/api/controller/AthleteController.java
+package com.example.api.controller;
+
+import com.example.api.constants.MediaTypes;
+import com.example.api.dto.*;
+import com.example.api.service.AthleteService;
+import com.example.api.util.ContentNegotiationHelper;
+import com.example.api.util.ContentNegotiationHelper.RepresentationType;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import java.net.URI;
+
+@RestController
+@RequestMapping("/v1/athletes")
+@RequiredArgsConstructor
+public class AthleteController {
+    
+    private final AthleteService athleteService;
+    
+    // GET /athletes - Spring сам диспатчит по Accept header
+    @GetMapping(produces = MediaTypes.APPLICATION_JSON_VALUE)
+    public ResponseEntity<PaginatedResponse<Athlete>> getAthletesBase(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String coachId,
+            @RequestParam(required = false) String search
+    ) {
+        PageRequest pageRequest = PageRequest.of(page - 1, limit);
+        return ResponseEntity.ok(athleteService.getAthletes(pageRequest, coachId, search));
+    }
+    
+    @GetMapping(produces = MediaTypes.ATHLETE_LIST_VALUE)
+    public ResponseEntity<PaginatedResponse<AthleteListItem>> getAthletesList(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String coachId,
+            @RequestParam(required = false) String search
+    ) {
+        PageRequest pageRequest = PageRequest.of(page - 1, limit);
+        return ResponseEntity.ok(athleteService.getAthletesList(pageRequest, coachId, search));
+    }
+    
+    @GetMapping(produces = MediaTypes.ATHLETE_LOOKUP_VALUE)
+    public ResponseEntity<PaginatedResponse<AthleteLookup>> getAthletesLookup(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String search
+    ) {
+        PageRequest pageRequest = PageRequest.of(page - 1, limit);
+        return ResponseEntity.ok(athleteService.getAthletesLookup(pageRequest, search));
+    }
+    
+    // GET /athletes/{id} - Spring сам диспатчит по Accept header
+    @GetMapping(value = "/{id}", produces = MediaTypes.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Athlete> getAthleteBase(@PathVariable String id) {
+        return ResponseEntity.ok(athleteService.getAthleteById(id));
+    }
+    
+    @GetMapping(value = "/{id}", produces = MediaTypes.ATHLETE_DETAIL_VALUE)
+    public ResponseEntity<AthleteDetail> getAthleteDetail(@PathVariable String id) {
+        return ResponseEntity.ok(athleteService.getAthleteDetail(id));
+    }
+    
+    @PostMapping(consumes = MediaTypes.APPLICATION_JSON_VALUE, produces = MediaTypes.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Athlete> createAthlete(@Valid @RequestBody AthleteCreate dto) {
+        Athlete created = athleteService.createAthlete(dto);
+        return ResponseEntity
+                .created(URI.create("/v1/athletes/" + created.getId()))
+                .body(created);
+    }
+    
+    @PutMapping(value = "/{id}", consumes = MediaTypes.APPLICATION_JSON_VALUE, produces = MediaTypes.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Athlete> updateAthlete(
+            @PathVariable String id,
+            @Valid @RequestBody AthleteUpdate dto
+    ) {
+        Athlete updated = athleteService.updateAthlete(id, dto);
+        return ResponseEntity.ok(updated);
+    }
+    
+    @PatchMapping(value = "/{id}", consumes = MediaTypes.APPLICATION_JSON_VALUE, produces = MediaTypes.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Athlete> patchAthlete(
+            @PathVariable String id,
+            @Valid @RequestBody AthletePatch dto
+    ) {
+        Athlete patched = athleteService.patchAthlete(id, dto);
+        return ResponseEntity.ok(patched);
+    }
+    
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAthlete(@PathVariable String id) {
+        athleteService.deleteAthlete(id);
+    }
+}
+```
+
+#### Exception Handler
+
+```java
+// src/main/java/com/example/api/exception/NotAcceptableException.java
+package com.example.api.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+@ResponseStatus(HttpStatus.NOT_ACCEPTABLE)
+public class NotAcceptableException extends RuntimeException {
+    public NotAcceptableException(String message) {
+        super(message);
+    }
+}
+```
+
+#### Global Exception Handler
+
+```java
+// src/main/java/com/example/api/exception/GlobalExceptionHandler.java
+package com.example.api.exception;
+
+import com.example.api.constants.MediaTypes;
+import com.example.api.dto.ErrorResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.Instant;
+import java.util.List;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    
+    @ExceptionHandler(NotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleNotAcceptable(NotAcceptableException ex) {
+        ErrorResponse error = ErrorResponse.builder()
+                .code("NOT_ACCEPTABLE")
+                .message(ex.getMessage())
+                .timestamp(Instant.now().toString())
+                .details(new ErrorResponse.ErrorDetails(
+                    "supported", 
+                    List.of(
+                        MediaTypes.APPLICATION_JSON_VALUE,
+                        MediaTypes.ATHLETE_LIST_VALUE,
+                        MediaTypes.ATHLETE_LOOKUP_VALUE,
+                        MediaTypes.ATHLETE_DETAIL_VALUE,
+                        MediaTypes.ATHLETE_SUMMARY_VALUE
+                    )
+                ))
+                .build();
+        
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(error);
+    }
+}
 ```
 
 ---
