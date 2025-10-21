@@ -4,7 +4,7 @@
 
 Профессиональное проектирование REST API для спортивной системы управления с использованием content negotiation через Accept headers и следованием industry-standard best practices.
 
-**Примечание**: Данная спецификация демонстрирует подход на примере модуля Athletes, но принципы и паттерны применимы ко всем ресурсам системы (Coaches, Training Sessions, Subscriptions и т.д.).
+**Примечание**: Данная спецификация демонстрирует подход на примере модуля Athletes, но принципы и паттерны применимы ко всем ресурсам системы (Coaches и т.д.).
 
 ---
 
@@ -37,18 +37,18 @@ application/vnd.api.{resource}.{representation}+json
 
 ### Для любого ресурса системы:
 ```
-application/vnd.api.{resource}.full+json      # полное представление (default)
+application/json                              # базовое нормализованное представление (default)
 application/vnd.api.{resource}.detail+json    # расширенное без readonly полей
 application/vnd.api.{resource}.summary+json   # минимальное представление
-application/json                              # fallback → full
 ```
 
 ### Примеры для разных ресурсов:
 ```
-application/vnd.api.athlete.full+json         # Athletes
-application/vnd.api.coach.detail+json         # Coaches
-application/vnd.api.training-session.summary+json  # Training Sessions
-application/vnd.api.subscription.full+json    # Subscriptions
+application/json                              # базовое представление (любой ресурс)
+application/vnd.api.athlete.detail+json       # Athletes - detail
+application/vnd.api.athlete.summary+json      # Athletes - summary
+application/vnd.api.coach.detail+json         # Coaches - detail
+application/vnd.api.coach.summary+json        # Coaches - summary
 ```
 
 ### Анатомия Media Type:
@@ -74,8 +74,8 @@ application/vnd.api.{resource}.{representation}+json
 
 ### Response Models (что возвращает сервер)
 
-#### 1. `{Resource}` - Полное представление
-**Media Type**: `application/vnd.api.{resource}.full+json`
+#### 1. `{Resource}` - Базовое нормализованное представление
+**Media Type**: `application/json`
 
 **Пример для Athlete**:
 
@@ -93,10 +93,12 @@ interface Athlete {
 ```
 
 **Use cases**:
+- Стандартное представление по умолчанию
+- Нормализованные данные "как есть" из БД
 - Admin панели
 - Debugging и auditing
 - Data export
-- Когда нужна полная информация включая связи и метаданные
+- Когда не указан специальный Accept header
 
 ---
 
@@ -113,7 +115,6 @@ interface AthleteDetail {
   phone: string;
   telegram: string | null;
   // Исключены: coachId, createdAt, updatedAt
-  // Future: subscription?: Subscription; (когда появится FK)
 }
 ```
 
@@ -121,7 +122,6 @@ interface AthleteDetail {
 - Карточки профилей
 - Формы редактирования
 - User-facing интерфейсы, где системные поля не нужны
-- Будущее расширение: embedded relationships
 
 ---
 
@@ -232,7 +232,6 @@ interface AthletePatch {
 **Примеры для разных ресурсов**:
 - `Athlete`, `AthleteSummary`, `AthleteDetail`, `AthleteCreate`, `AthleteUpdate`, `AthletePatch`
 - `Coach`, `CoachSummary`, `CoachDetail`, `CoachCreate`, `CoachUpdate`, `CoachPatch`
-- `TrainingSession`, `TrainingSessionSummary`, `TrainingSessionDetail`, `TrainingSessionCreate`, `TrainingSessionUpdate`, `TrainingSessionPatch`
 
 **Это НЕ случайность** - это industry standard, используемый в:
 - REST API Best Practices (Microsoft, Google)
@@ -268,9 +267,9 @@ interface AthletePatch {
 ### 3. `GET /{resource}/{id}` - Получение по ID
 **Пример**: `GET /athletes/{athleteId}` - Получение атлета по ID
 - Accept header определяет представление:
-  - `full` → `Athlete` (default)
-  - `detail` → `AthleteDetail`
-  - `summary` → `AthleteSummary`
+  - `application/json` → `Athlete` (default, базовое)
+  - `application/vnd.api.{resource}.detail+json` → `AthleteDetail`
+  - `application/vnd.api.{resource}.summary+json` → `AthleteSummary`
 - **Ответ**: 200 OK
 - **Ошибки**: 404 (не найден), 406 (неподдерживаемый Accept)
 
@@ -300,7 +299,7 @@ interface AthletePatch {
 - **Семантика**: Идемпотентная
 - **Ошибки**: 
   - 404 (не найден)
-  - 409 (имеет зависимости, например, активные тренировки)
+  - 409 (имеет зависимости, например, связанные записи)
 
 ---
 
@@ -452,7 +451,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 10. **Batch операции**: для массовых действий с partial success
 11. **Nested resources**: `/coaches/{id}/athletes` для связанных данных
 12. **Content negotiation**: Accept header для разных представлений
-13. **Fallback**: `application/json` → full representation для совместимости
+13. **Default representation**: `application/json` → базовое нормализованное представление
 
 ---
 
@@ -476,12 +475,12 @@ Accept: application/vnd.api.athlete.detail+json
 
 ---
 
-### Сценарий 3: Admin панель с полными данными
+### Сценарий 3: Admin панель с базовыми данными
 ```http
 GET /athletes/550e8400...
-Accept: application/vnd.api.athlete.full+json
+Accept: application/json
 ```
-Вернет все поля включая метаданные для аудита.
+Вернет базовое нормализованное представление со всеми полями БД включая метаданные для аудита.
 
 ---
 
@@ -543,7 +542,7 @@ Content-Type: application/json
   "failed": [
     {
       "id": "550e8402...",
-      "reason": "Athlete has active training sessions"
+      "reason": "Athlete has related records"
     }
   ]
 }
@@ -556,11 +555,10 @@ Content-Type: application/json
 ### Server-side parsing Accept header
 
 ```typescript
-function determineRepresentation(acceptHeader: string): 'full' | 'detail' | 'summary' {
+function determineRepresentation(acceptHeader: string): 'base' | 'detail' | 'summary' {
   if (acceptHeader.includes('athlete.summary+json')) return 'summary';
   if (acceptHeader.includes('athlete.detail+json')) return 'detail';
-  if (acceptHeader.includes('athlete.full+json')) return 'full';
-  if (acceptHeader.includes('application/json')) return 'full'; // fallback
+  if (acceptHeader.includes('application/json')) return 'base'; // default
   
   throw new NotAcceptableError(406, 'Unsupported Accept header');
 }
@@ -570,10 +568,9 @@ function determineRepresentation(acceptHeader: string): 'full' | 'detail' | 'sum
 
 ```typescript
 export const MediaTypes = {
-  ATHLETE_FULL: 'application/vnd.api.athlete.full+json',
+  JSON: 'application/json', // базовое представление (default)
   ATHLETE_DETAIL: 'application/vnd.api.athlete.detail+json',
   ATHLETE_SUMMARY: 'application/vnd.api.athlete.summary+json',
-  JSON: 'application/json', // fallback
 } as const;
 ```
 
@@ -591,10 +588,9 @@ app.use((req, res, next) => {
         code: 'NOT_ACCEPTABLE',
         message: 'Unsupported media type in Accept header',
         supported: [
-          MediaTypes.ATHLETE_FULL,
+          MediaTypes.JSON,
           MediaTypes.ATHLETE_DETAIL,
-          MediaTypes.ATHLETE_SUMMARY,
-          MediaTypes.JSON
+          MediaTypes.ATHLETE_SUMMARY
         ]
       }
     });
@@ -608,7 +604,7 @@ app.use((req, res, next) => {
 
 ### 1. Embedded Relationships (expand parameter)
 ```http
-GET /athletes/550e8400...?expand=subscription
+GET /athletes/550e8400...?expand=coach
 Accept: application/vnd.api.athlete.detail+json
 
 Response:
@@ -618,10 +614,10 @@ Response:
   "email": "john@example.com",
   "phone": "+1234567890",
   "telegram": "@johndoe",
-  "subscription": {  // embedded
+  "coach": {  // embedded
     "id": "...",
-    "plan": "Premium",
-    "status": "active"
+    "name": "Coach Smith",
+    "email": "coach@example.com"
   }
 }
 ```
@@ -639,8 +635,7 @@ GET /athletes?fields=id,name,email,phone
   "name": "John Doe",
   "_links": {
     "self": "/v1/athletes/550e8400...",
-    "coach": "/v1/coaches/660e8400...",
-    "training_sessions": "/v1/athletes/550e8400.../sessions"
+    "coach": "/v1/coaches/660e8400..."
   }
 }
 ```
@@ -650,8 +645,8 @@ GET /athletes?fields=id,name,email,phone
 ## ✅ Итоговый чеклист решений
 
 - ✅ Content negotiation через **Accept header**
-- ✅ Media Type: `application/vnd.api.{resource}.{representation}+json`
-- ✅ Три представления: **full**, **detail**, **summary**
+- ✅ Media Type: `application/json` (базовое) и `application/vnd.api.{resource}.{representation}+json` (специальные)
+- ✅ Три представления: **базовое** (application/json), **detail**, **summary**
 - ✅ Шесть схем: **Athlete**, **AthleteSummary**, **AthleteDetail**, **AthleteCreate**, **AthleteUpdate**, **AthletePatch**
 - ✅ Naming convention: `{Resource}{Operation}` (industry standard)
 - ✅ REST семантика: правильное использование GET/POST/PUT/PATCH/DELETE
@@ -677,22 +672,17 @@ GET /athletes?fields=id,name,email,phone
 
 ### Основные ресурсы:
 - **Coaches** (`/coaches`, `/coaches/{id}`, etc.)
-- **Training Sessions** (`/training-sessions`, `/training-sessions/{id}`, etc.)
-- **Subscriptions** (`/subscriptions`, `/subscriptions/{id}`, etc.)
 - **Users** (`/users`, `/users/{id}`, etc.)
 - **Gyms** (`/gyms`, `/gyms/{id}`, etc.)
 
 ### Nested resources:
 - `/coaches/{coachId}/athletes` ✅ (уже реализовано)
-- `/athletes/{athleteId}/training-sessions`
-- `/athletes/{athleteId}/subscriptions`
 - `/gyms/{gymId}/coaches`
-- `/coaches/{coachId}/training-sessions`
 
 ### Применение паттернов:
 Каждый новый ресурс должен следовать тем же принципам:
 - ✅ Content negotiation через Accept header
-- ✅ Три представления: full, detail, summary
+- ✅ Три представления: базовое (application/json), detail, summary
 - ✅ Шесть схем: {Resource}, {Resource}Summary, {Resource}Detail, {Resource}Create, {Resource}Update, {Resource}Patch
 - ✅ Стандартные HTTP методы и коды ответов
 - ✅ Пагинация, фильтрация, сортировка
