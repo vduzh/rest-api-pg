@@ -300,17 +300,38 @@ interface RunnerPatch {
 
 ---
 
-### 3. `GET /{resource}/{id}` - Get by ID
+### 3. `GET /runners/me` - Get current runner profile
+**Example**: `GET /runners/me` - Get own runner profile
+- **Authorization**: Requires `runner` role
+- Uses `sub` claim from JWT to identify the runner
+- Accept header determines representation:
+  - `application/json` → `Runner` (default, base)
+  - `application/vnd.api.runner.detail+json` → `RunnerDetail`
+- **Response**: 200 OK
+- **Errors**:
+  - 401 (missing/invalid token)
+  - 403 (insufficient permissions - not a runner)
+  - 404 (runner not found by JWT sub)
+  - 406 (unsupported Accept)
+
+---
+
+### 4. `GET /{resource}/{id}` - Get by ID
 **Example**: `GET /runners/{runnerId}` - Get runner by ID
+- **Authorization**: Requires `user` or `admin` role
 - Accept header determines representation:
   - `application/json` → `Runner` (default, base)
   - `application/vnd.api.{resource}.detail+json` → `RunnerDetail`
 - **Response**: 200 OK
-- **Errors**: 404 (not found), 406 (unsupported Accept)
+- **Errors**:
+  - 401 (missing/invalid token)
+  - 403 (insufficient permissions - runner role)
+  - 404 (not found)
+  - 406 (unsupported Accept)
 
 ---
 
-### 4. `PUT /{resource}/{id}` - Full replacement
+### 5. `PUT /{resource}/{id}` - Full replacement
 **Example**: `PUT /runners/{runnerId}` - Full runner replacement
 - **Body**: `RunnerUpdate` schema (all fields required)
 - **Response**: 200 OK with full `Runner`
@@ -411,9 +432,9 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ```json
 {
-  "sub": "user-uuid",           // User ID
+  "sub": "user-uuid",           // User ID (or Runner ID for runner role)
   "email": "user@example.com",  // User email
-  "role": "user",               // Role: "user" or "admin"
+  "role": "admin",              // Role: "runner", "user", or "admin"
   "iat": 1609459200,            // Issued at
   "exp": 1609545600             // Expiration
 }
@@ -422,32 +443,42 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ### Role-Based Access Control (RBAC)
 
 **Roles**:
-- `user` - Regular user with standard permissions
+- `runner` - Runner with access to own profile only
+- `user` - Regular user (e.g., coach) with standard permissions
 - `admin` - Administrator with full permissions
 
 **Permissions by role**:
 
-| Operation | Endpoint Example | user | admin |
-|-----------|-----------------|------|-------|
-| GET (list) | `GET /runners` | ✅ | ✅ |
-| GET (by ID) | `GET /runners/{id}` | ✅ | ✅ |
-| POST | `POST /runners` | ✅ | ✅ |
-| PUT | `PUT /runners/{id}` | ✅ | ✅ |
-| PATCH | `PATCH /runners/{id}` | ✅ | ✅ |
-| DELETE | `DELETE /runners/{id}` | ❌ | ✅ |
+| Operation | Endpoint Example | runner | user | admin |
+|-----------|-----------------|--------|------|-------|
+| GET /runners/me | `GET /runners/me` | ✅ | ❌ | ❌ |
+| GET (list) | `GET /runners` | ❌ | ✅ | ✅ |
+| GET (by ID) | `GET /runners/{id}` | ❌ | ✅ | ✅ |
+| POST | `POST /runners` | ❌ | ✅ | ✅ |
+| PUT (own) | `PUT /runners/me` | ✅ | ❌ | ✅ |
+| PUT (any) | `PUT /runners/{id}` | ❌ | ✅ | ✅ |
+| PATCH (own) | `PATCH /runners/me` | ✅ | ❌ | ✅ |
+| PATCH (any) | `PATCH /runners/{id}` | ❌ | ✅ | ✅ |
+| DELETE | `DELETE /runners/{id}` | ❌ | ❌ | ✅ |
+
+**Key rules**:
+- **runner** role: Can only access and modify own profile via `/runners/me`
+- **user** role: Can manage all runners (for coaches managing their athletes)
+- **admin** role: Full access including DELETE operations
 
 **DELETE operations** require `admin` role:
-- ❌ User with `role: "user"` → 403 Forbidden
+- ❌ User with `role: "runner"` or `role: "user"` → 403 Forbidden
 - ✅ User with `role: "admin"` → 204 No Content (success)
 
 ### Security Rules
 
 - ✅ All endpoints require authentication
 - ✅ Token validated by middleware on every request
-- ✅ Role extracted from JWT and checked for DELETE operations
+- ✅ Role extracted from JWT and checked for authorization
+- ✅ `/runners/me` endpoint uses `sub` claim from JWT to identify runner
 - ❌ Without token → 401 Unauthorized
 - ❌ Invalid/expired token → 401 Unauthorized
-- ❌ DELETE without admin role → 403 Forbidden
+- ❌ Insufficient permissions → 403 Forbidden
 
 ---
 

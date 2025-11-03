@@ -217,6 +217,66 @@ paths:
       security:
         - bearerAuth: []
 
+  /runners/me:
+    get:
+      tags:
+        - Runners
+      summary: Get current runner profile
+      description: |
+        Retrieve the profile of the currently authenticated runner.
+        Uses the `sub` claim from JWT to identify the runner.
+
+        **Authorization**: Requires `runner` role.
+
+        Use Accept header to control the representation:
+        - **base** (application/json, default): Complete data including coachId
+        - **detail**: Enriched with denormalized relations (e.g., coachName)
+      operationId: getCurrentRunner
+      parameters:
+        - $ref: '#/components/parameters/AcceptRunnerDetail'
+      responses:
+        '200':
+          description: Current runner profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Runner'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440003"
+                coachId: "660e8400-e29b-41d4-a716-446655440001"
+                name: "Current Runner"
+                email: "runner@example.com"
+                phone: "+12025551234"
+                languageId: "770e8400-e29b-41d4-a716-446655440001"
+            application/vnd.api.runner.detail+json:
+              schema:
+                $ref: '#/components/schemas/RunnerDetail'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440003"
+                coachId: "660e8400-e29b-41d4-a716-446655440001"
+                coachName: "John Doe"
+                name: "Current Runner"
+                email: "runner@example.com"
+                phone: "+12025551234"
+                languageId: "770e8400-e29b-41d4-a716-446655440001"
+                languageName: "English"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Runner not found - JWT sub claim does not match any runner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Runner not found for the authenticated user"
+        '406':
+          $ref: '#/components/responses/NotAcceptable'
+      security:
+        - bearerAuth: []
+
   /runners/{runnerId}:
     parameters:
       - name: runnerId
@@ -1012,21 +1072,24 @@ components:
         {
           "sub": "user-uuid",
           "email": "user@example.com",
-          "role": "user",
+          "role": "admin",
           "iat": 1609459200,
           "exp": 1609545600
         }
         ```
 
         **Roles:**
-        - `user` - Regular user with standard permissions
+        - `runner` - Runner with access to own profile only via `/runners/me`
+        - `user` - Regular user (e.g., coach) with standard permissions
         - `admin` - Administrator with full permissions
 
         **Role-Based Permissions:**
         - All endpoints require authentication
-        - GET, POST, PUT, PATCH operations: accessible to both `user` and `admin`
+        - **runner** role: Can only access `/runners/me` (own profile)
+        - **user** role: Can GET, POST, PUT, PATCH on all runners (for coaches)
+        - **admin** role: Full access including DELETE operations
         - DELETE operations: require `admin` role only
-          - User with `role: "user"` → 403 Forbidden
+          - User with `role: "runner"` or `role: "user"` → 403 Forbidden
           - User with `role: "admin"` → 204 No Content (success)
 
         **Error Responses:**
