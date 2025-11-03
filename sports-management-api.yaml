@@ -126,13 +126,13 @@ paths:
                       name: "John Doe"
                       email: "john.doe@example.com"
                       phone: "+1234567890"
-                      telegram: "@johndoe"
+                      languageId: "770e8400-e29b-41d4-a716-446655440002"
                     - id: "550e8400-e29b-41d4-a716-446655440002"
                       coachId: "660e8400-e29b-41d4-a716-446655440001"
                       name: "Jane Smith"
                       email: "jane.smith@example.com"
-                      phone: "+1234567891"
-                      telegram: "@janesmith"
+                      phone: null
+                      languageId: "770e8400-e29b-41d4-a716-446655440002"
             
             # List representation (denormalized for tables)
             application/vnd.api.runner.list+json:
@@ -199,12 +199,12 @@ paths:
               $ref: '#/components/schemas/RunnerCreate'
             examples:
               minimal:
-                summary: Minimal required fields
+                summary: Minimal required fields (phone optional)
                 value:
                   coachId: "660e8400-e29b-41d4-a716-446655440001"
                   name: "Jane Smith"
                   email: "jane.smith@example.com"
-                  phone: "+1234567891"
+                  languageId: "770e8400-e29b-41d4-a716-446655440002"
               full:
                 summary: All fields provided
                 value:
@@ -212,7 +212,7 @@ paths:
                   name: "Jane Smith"
                   email: "jane.smith@example.com"
                   phone: "+1234567891"
-                  telegram: "@janesmith"
+                  languageId: "770e8400-e29b-41d4-a716-446655440002"
       responses:
         '201':
           description: Runner created successfully
@@ -233,7 +233,7 @@ paths:
                 name: "Jane Smith"
                 email: "jane.smith@example.com"
                 phone: "+1234567891"
-                telegram: "@janesmith"
+                languageId: "770e8400-e29b-41d4-a716-446655440002"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -311,21 +311,24 @@ paths:
                     name: "John Doe"
                     email: "john.doe@example.com"
                     phone: "+1234567890"
-                    telegram: "@johndoe"
-            
+                    languageId: "770e8400-e29b-41d4-a716-446655440002"
+
             # Detail representation
             application/vnd.api.runner.detail+json:
               schema:
                 $ref: '#/components/schemas/RunnerDetail'
               examples:
                 detail:
-                  summary: Extended without readonly fields
+                  summary: Extended with denormalized related data
                   value:
                     id: "550e8400-e29b-41d4-a716-446655440000"
                     name: "John Doe"
                     email: "john.doe@example.com"
                     phone: "+1234567890"
-                    telegram: "@johndoe"
+                    coachId: "660e8400-e29b-41d4-a716-446655440001"
+                    coachName: "Coach Smith"
+                    languageId: "770e8400-e29b-41d4-a716-446655440002"
+                    languageName: "English"
             
         
         '401':
@@ -363,8 +366,8 @@ paths:
                   coachId: "660e8400-e29b-41d4-a716-446655440001"
                   name: "John Doe Updated"
                   email: "new.email@example.com"
-                  phone: "+9876543210"
-                  telegram: null
+                  phone: null
+                  languageId: "770e8400-e29b-41d4-a716-446655440002"
       responses:
         '200':
           description: Runner updated successfully
@@ -410,11 +413,11 @@ paths:
                 summary: Update multiple fields
                 value:
                   email: "newemail@example.com"
-                  telegram: "@newhandle"
-              removeTelegram:
-                summary: Remove telegram (set to null)
+                  languageId: "770e8400-e29b-41d4-a716-446655440003"
+              removePhone:
+                summary: Remove phone (set to null)
                 value:
-                  telegram: null
+                  phone: null
       responses:
         '200':
           description: Runner updated successfully
@@ -551,7 +554,7 @@ components:
         **Base normalized representation** of an runner (default).
         Includes all fields: mutable data + readonly metadata.
         Used with: `application/json`
-        
+
         Use cases:
         - Default standard representation
         - Admin panels
@@ -564,7 +567,7 @@ components:
         - name
         - email
         - phone
-        - telegram
+        - languageId
       properties:
         id:
           type: string
@@ -591,15 +594,15 @@ components:
           example: "john.doe@example.com"
         phone:
           type: string
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format
-          example: "+1234567890"
-        telegram:
-          type: string
           nullable: true
-          pattern: '^@[a-zA-Z0-9_]{5,32}$'
-          description: Telegram username (optional)
-          example: "@johndoe"
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format (optional)
+          example: "+1234567890"
+        languageId:
+          type: string
+          format: uuid
+          description: Reference to the language
+          example: "770e8400-e29b-41d4-a716-446655440002"
 
     RunnerListItem:
       type: object
@@ -677,21 +680,24 @@ components:
     RunnerDetail:
       type: object
       description: |
-        **Extended representation** without readonly fields.
-        Excludes: coachId
+        **Extended representation** with denormalized related data.
+        Includes denormalized coach and language names for richer UI display.
         Used with: `application/vnd.api.runner.detail+json`
-        
+
         Use cases:
         - Profile cards and displays
-        - Edit forms (shows what user can modify)
-        - User-facing interfaces where system fields are not relevant
-        - Future: Can include embedded relationships (e.g., subscription)
+        - Detail views with related entity names
+        - User-facing interfaces where denormalized data improves UX
+        - Reduces client-side requests for related entities
       required:
         - id
         - name
         - email
         - phone
-        - telegram
+        - coachId
+        - coachName
+        - languageId
+        - languageName
       properties:
         id:
           type: string
@@ -712,15 +718,28 @@ components:
           example: "john.doe@example.com"
         phone:
           type: string
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format
-          example: "+1234567890"
-        telegram:
-          type: string
           nullable: true
-          pattern: '^@[a-zA-Z0-9_]{5,32}$'
-          description: Telegram username (optional)
-          example: "@johndoe"
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format (optional)
+          example: "+1234567890"
+        coachId:
+          type: string
+          format: uuid
+          description: Coach UUID
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        coachName:
+          type: string
+          description: Coach name (denormalized!)
+          example: "Coach Smith"
+        languageId:
+          type: string
+          format: uuid
+          description: Language UUID
+          example: "770e8400-e29b-41d4-a716-446655440002"
+        languageName:
+          type: string
+          description: Language name (denormalized!)
+          example: "English"
 
 
     # ==========================================
@@ -731,17 +750,17 @@ components:
       type: object
       description: |
         **Request schema for creating a new runner** (POST /runners).
-        
+
         Excludes readonly fields:
         - id (generated by server)
-        
-        All fields except telegram are required.
+
+        Phone is optional, all other fields are required.
         Server will generate missing fields and return full Runner object.
       required:
         - coachId
         - name
         - email
-        - phone
+        - languageId
       properties:
         coachId:
           type: string
@@ -762,34 +781,34 @@ components:
           example: "jane.smith@example.com"
         phone:
           type: string
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format (e.g., +1234567890)
-          example: "+1234567891"
-        telegram:
-          type: string
           nullable: true
-          pattern: '^@[a-zA-Z0-9_]{5,32}$'
-          description: Telegram username starting with @ (optional)
-          example: "@janesmith"
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format (optional, e.g., +1234567890)
+          example: "+1234567891"
+        languageId:
+          type: string
+          format: uuid
+          description: ID of the runner's language
+          example: "770e8400-e29b-41d4-a716-446655440002"
 
     RunnerUpdate:
       type: object
       description: |
         **Request schema for full replacement** (PUT /runners/{id}).
-        
-        All fields are REQUIRED (including telegram which must be explicitly specified, even if null).
+
+        All fields are REQUIRED (including phone which must be explicitly specified, even if null).
         This replaces the entire resource - missing fields will cause validation error.
-        
+
         Excludes readonly fields:
         - id (cannot be changed)
-        
+
         Use PATCH for partial updates instead if you don't want to send all fields.
       required:
         - coachId
         - name
         - email
         - phone
-        - telegram
+        - languageId
       properties:
         coachId:
           type: string
@@ -810,27 +829,27 @@ components:
           example: "john.doe@example.com"
         phone:
           type: string
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format
-          example: "+1234567890"
-        telegram:
-          type: string
           nullable: true
-          pattern: '^@[a-zA-Z0-9_]{5,32}$'
-          description: Telegram username (can be null to remove)
-          example: null
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format (can be null)
+          example: "+1234567890"
+        languageId:
+          type: string
+          format: uuid
+          description: ID of the runner's language
+          example: "770e8400-e29b-41d4-a716-446655440002"
 
     RunnerPatch:
       type: object
       description: |
         **Request schema for partial update** (PATCH /runners/{id}).
-        
+
         All fields are OPTIONAL - send only what you want to change.
         At least ONE field must be provided.
-        
+
         Excludes readonly fields:
         - id (cannot be changed)
-        
+
         Perfect for updating individual fields without touching the rest.
       minProperties: 1
       properties:
@@ -853,15 +872,15 @@ components:
           example: "john.doe@example.com"
         phone:
           type: string
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format
-          example: "+1234567890"
-        telegram:
-          type: string
           nullable: true
-          pattern: '^@[a-zA-Z0-9_]{5,32}$'
-          description: Telegram username (set to null to remove)
-          example: "@johndoe"
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format (set to null to remove)
+          example: "+1234567890"
+        languageId:
+          type: string
+          format: uuid
+          description: ID of the runner's language
+          example: "770e8400-e29b-41d4-a716-446655440002"
 
     # ==========================================
     # UTILITY SCHEMAS

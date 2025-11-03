@@ -87,8 +87,8 @@ interface Runner {
   coachId: string;         // UUID, FK to Coach
   name: string;            // 1-255 characters
   email: string;           // unique email
-  phone: string;           // E.164 format (+1234567890)
-  telegram: string | null; // @username or null
+  phone: string | null;    // E.164 format (+1234567890)
+  languageId: string;      // language UUID
 }
 ```
 
@@ -156,9 +156,11 @@ interface RunnerDetail {
   id: string;
   name: string;
   email: string;
-  phone: string;
-  telegram: string | null;
-  // Excluded: coachId
+  phone: string | null;
+  coachId: string;         // coach UUID
+  coachName: string;       // coach name (denormalized!)
+  languageId: string;      // language UUID
+  languageName: string;    // language name (denormalized!)
 }
 ```
 
@@ -183,9 +185,8 @@ interface RunnerCreate {
   coachId: string;         // required
   name: string;            // required
   email: string;           // required
-  phone: string;           // required
-  telegram?: string | null; // optional
-  // Excluded: id (server-generated)
+  phone?: string | null;   // optional
+  languageId: string;      // required
 }
 ```
 
@@ -205,9 +206,8 @@ interface RunnerUpdate {
   coachId: string;         // required
   name: string;            // required
   email: string;           // required
-  phone: string;           // required
-  telegram: string | null; // required, must be explicitly specified (even null)
-  // Excluded: id
+  phone: string | null;    // required, must be explicitly specified (even null)
+  languageId: string;      // required
 }
 ```
 
@@ -228,9 +228,8 @@ interface RunnerPatch {
   coachId?: string;         // optional
   name?: string;            // optional
   email?: string;           // optional
-  phone?: string;           // optional
-  telegram?: string | null; // optional
-  // At least 1 field must be sent
+  phone?: string | null;    // optional
+  languageId?: string;      // optional
 }
 ```
 
@@ -497,12 +496,12 @@ Returns denormalized data including `coachName` - without additional client requ
 
 ---
 
-### Scenario 3: Runner edit form
+### Scenario 3: Runner detail view
 ```http
 GET /runners/550e8400...
 Accept: application/vnd.api.runner.detail+json
 ```
-Returns data without `coachId` - clean UI.
+Returns extended data with denormalized coach and language names - no additional requests needed.
 
 ---
 
@@ -525,7 +524,7 @@ Content-Type: application/json
   "name": "Jane Smith",
   "email": "jane@example.com",
   "phone": "+1234567890",
-  "telegram": "@jane"
+  "languageId": "560e8400..."
 }
 
 → 201 Created
@@ -536,7 +535,7 @@ Location: /v1/runners/550e8400...
   "name": "Jane Smith",
   "email": "jane@example.com",
   "phone": "+1234567890",
-  "telegram": "@jane",
+  "languageId": "560e8400..."
 }
 ```
 
