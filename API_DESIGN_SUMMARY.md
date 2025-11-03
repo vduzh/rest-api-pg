@@ -361,12 +361,15 @@ interface RunnerPatch {
 
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",           // machine-readable code
-    "message": "Request validation failed" // human-readable message
-  }
+  "message": "Request validation failed"
 }
 ```
+
+**Rationale for simple structure**:
+- ✅ Simplicity: Single field, easy to parse
+- ✅ Sufficient for most use cases
+- ✅ HTTP status code already provides error categorization
+- ✅ Message contains all necessary information for debugging and user display
 
 ### HTTP Status Codes
 
@@ -464,7 +467,7 @@ if (hasNextPage) {
 2. **Pagination**: mandatory for all list endpoints, cursor-based without COUNT for performance
 3. **Filtering**: via query parameters (REST standard)
 4. **Validation**: at schema level (formats, patterns, length, regex)
-5. **Errors**: uniform format with machine-readable codes
+5. **Errors**: simple uniform format with single message field
 6. **Security**: JWT for all requests, readonly fields protected
 7. **REST semantics**: proper HTTP method usage
 8. **Readonly fields**: `id` cannot be changed by client
@@ -565,7 +568,7 @@ Content-Type: application/json
 - ✅ REST semantics: proper usage of GET/POST/PUT/PATCH/DELETE
 - ✅ Cursor-based pagination without COUNT for performance (direct array response)
 - ✅ Filtering and sorting
-- ✅ Uniform errors with codes
+- ✅ Simple uniform error format (single message field)
 - ✅ JWT authentication on all endpoints
 - ✅ Nested resources for related data
 - ✅ Location header when creating resource
