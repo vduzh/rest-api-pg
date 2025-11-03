@@ -53,9 +53,9 @@ tags:
   - name: Authentication
     description: Authentication and token management
   - name: Runners
-    description: Operations related to runner management
+    description: Direct operations on runners (list all, get by ID, create, update, delete)
   - name: Coaches
-    description: Operations related to coach management
+    description: Operations related to coaches (manage coach profile, view their runners)
 
 paths:
   # ==========================================
@@ -589,11 +589,15 @@ paths:
   /coaches/{coachId}/runners:
     get:
       tags:
-        - Runners
-      summary: Get runners by coach
+        - Coaches
+      summary: List runners for a specific coach
       description: |
-        Retrieve all runners for a specific coach with pagination.
-        Supports same Accept header variations as /runners endpoint.
+        Retrieve all runners managed by the specified coach.
+
+        This is equivalent to `GET /runners?coachId={coachId}` but provides
+        a more intuitive navigation path in the context of coach management.
+
+        Supports pagination and same Accept header variations as /runners endpoint.
       operationId: getRunnersByCoach
       parameters:
         - name: coachId
