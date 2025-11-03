@@ -402,12 +402,25 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ## 📈 Pagination
 
+### Strategy: Cursor-based without COUNT
+
+**Adopted approach**: Pagination without total count metadata
+
+**Rationale**:
+- ✅ **Performance**: No expensive `COUNT(*)` queries on large tables
+- ✅ **Scalability**: Works efficiently with millions of records
+- ✅ **Consistency**: No race conditions when data changes between requests
+- ✅ **Filtering**: COUNT queries become very slow with complex WHERE clauses
+- ❌ Trade-off: Client cannot know total pages/records upfront
+
 ### Query parameters
 - `page` - page number (1-indexed, default: 1)
 - `limit` - items per page (1-100, default: 20)
 
-### Response format
-List endpoints return array directly (no wrapper):
+### Response format: Array without metadata wrapper
+
+List endpoints return **array directly** (no wrapper object):
+
 ```json
 [
   {
@@ -423,12 +436,33 @@ List endpoints return array directly (no wrapper):
 ]
 ```
 
+**Client determines "has next page"**:
+```javascript
+// Request with limit=20
+const response = await fetch('/runners?page=1&limit=20');
+const items = await response.json();
+
+// If received exactly 20 items, likely has next page
+const hasNextPage = items.length === 20;
+
+// Request next page
+if (hasNextPage) {
+  const nextPage = await fetch('/runners?page=2&limit=20');
+}
+```
+
+**Benefits of direct array response**:
+- ✅ Simpler client code (no `response.data` unwrapping)
+- ✅ Smaller payload size (no wrapper overhead)
+- ✅ Standard RESTful pattern (used by GitHub, Stripe, Slack)
+- ✅ Easy to work with in TypeScript: `Runner[]` instead of `{ data: Runner[] }`
+
 ---
 
 ## 💡 Best Practices implemented in API
 
 1. **Versioning**: `/v1/` in URL for future breaking changes
-2. **Pagination**: mandatory for all list endpoints
+2. **Pagination**: mandatory for all list endpoints, cursor-based without COUNT for performance
 3. **Filtering**: via query parameters (REST standard)
 4. **Validation**: at schema level (formats, patterns, length, regex)
 5. **Errors**: uniform format with machine-readable codes
@@ -439,6 +473,7 @@ List endpoints return array directly (no wrapper):
 10. **Nested resources**: `/coaches/{id}/runners` for related data
 11. **Content negotiation**: Accept header for different representations
 12. **Default representation**: `application/json` → base normalized representation
+13. **Performance-first**: no expensive COUNT queries on large datasets
 
 ---
 
@@ -529,7 +564,7 @@ Content-Type: application/json
 - ✅ Seven schemas: **Runner**, **RunnerListItem**, **RunnerLookup**, **RunnerDetail**, **RunnerCreate**, **RunnerUpdate**, **RunnerPatch**
 - ✅ Naming convention: `{Resource}{Operation}` (industry standard)
 - ✅ REST semantics: proper usage of GET/POST/PUT/PATCH/DELETE
-- ✅ Pagination with metadata for all lists
+- ✅ Cursor-based pagination without COUNT for performance (direct array response)
 - ✅ Filtering and sorting
 - ✅ Uniform errors with codes
 - ✅ JWT authentication on all endpoints
@@ -537,6 +572,7 @@ Content-Type: application/json
 - ✅ Location header when creating resource
 - ✅ Readonly fields protected from modification
 - ✅ API versioning (/v1/)
+- ✅ Performance-first approach (no expensive aggregations)
 
 ---
 
