@@ -2,7 +2,7 @@
 
 ## Overview
 
-Professional REST API design for sports management system using content negotiation via Accept headers and following industry-standard best practices.
+REST API design for sports management system using content negotiation via Accept headers and following industry-standard best practices.
 
 **Note**: This specification demonstrates the approach using the Runners module as an example, but the principles and patterns apply to all system resources (Coaches, etc.).
 
