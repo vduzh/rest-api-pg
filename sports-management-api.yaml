@@ -140,7 +140,7 @@ paths:
                       coachId: "660e8400-e29b-41d4-a716-446655440001"
                       name: "John Doe"
                       email: "john.doe@example.com"
-                      phone: "+1234567890"
+                      phone: "+12025551234"
                       languageId: "770e8400-e29b-41d4-a716-446655440002"
                     - id: "550e8400-e29b-41d4-a716-446655440002"
                       coachId: "660e8400-e29b-41d4-a716-446655440001"
@@ -162,13 +162,13 @@ paths:
                     - id: "550e8400-e29b-41d4-a716-446655440000"
                       name: "John Doe"
                       email: "john.doe@example.com"
-                      phone: "+1234567890"
+                      phone: "+12025551234"
                       coachId: "660e8400-e29b-41d4-a716-446655440001"
                       coachName: "Coach Smith"
                     - id: "550e8400-e29b-41d4-a716-446655440002"
                       name: "Jane Smith"
                       email: "jane.smith@example.com"
-                      phone: "+1234567891"
+                      phone: "+12025551235"
                       coachId: "660e8400-e29b-41d4-a716-446655440001"
                       coachName: "Coach Smith"
             
@@ -226,7 +226,7 @@ paths:
                   coachId: "660e8400-e29b-41d4-a716-446655440001"
                   name: "Jane Smith"
                   email: "jane.smith@example.com"
-                  phone: "+1234567891"
+                  phone: "+12025551235"
                   languageId: "770e8400-e29b-41d4-a716-446655440002"
       responses:
         '201':
@@ -423,7 +423,7 @@ paths:
               updatePhone:
                 summary: Update only phone
                 value:
-                  phone: "+9876543210"
+                  phone: "+12025559999"
               updateMultiple:
                 summary: Update multiple fields
                 value:
@@ -608,9 +608,9 @@ components:
         phone:
           type: string
           nullable: true
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format (optional)
-          example: "+1234567890"
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Phone number in E.164 format (optional, minimum 8 digits including country code)
+          example: "+12025551234"
         languageId:
           type: string
           format: uuid
@@ -652,9 +652,9 @@ components:
           example: "john.doe@example.com"
         phone:
           type: string
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format
-          example: "+1234567890"
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Phone number in E.164 format (minimum 8 digits including country code)
+          example: "+12025551234"
         coachId:
           type: string
           format: uuid
@@ -732,9 +732,9 @@ components:
         phone:
           type: string
           nullable: true
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format (optional)
-          example: "+1234567890"
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Phone number in E.164 format (optional, minimum 8 digits including country code)
+          example: "+12025551234"
         coachId:
           type: string
           format: uuid
@@ -795,9 +795,9 @@ components:
         phone:
           type: string
           nullable: true
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format (optional, e.g., +1234567890)
-          example: "+1234567891"
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Phone number in E.164 format (optional, minimum 8 digits including country code)
+          example: "+12025551235"
         languageId:
           type: string
           format: uuid
@@ -886,9 +886,9 @@ components:
         phone:
           type: string
           nullable: true
-          pattern: '^\+?[1-9]\d{1,14}$'
-          description: Phone number in E.164 format (set to null to remove)
-          example: "+1234567890"
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Phone number in E.164 format (set to null to remove, minimum 8 digits including country code)
+          example: "+12025551234"
         languageId:
           type: string
           format: uuid

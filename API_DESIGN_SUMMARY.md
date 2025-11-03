@@ -87,7 +87,7 @@ interface Runner {
   coachId: string;         // UUID, FK to Coach
   name: string;            // 1-255 characters
   email: string;           // unique email
-  phone: string | null;    // E.164 format (+1234567890)
+  phone: string | null;    // E.164 format, min 8 digits (+12025551234)
   languageId: string;      // language UUID
 }
 ```
@@ -533,7 +533,7 @@ Content-Type: application/json
   "coachId": "660e8400...",
   "name": "Jane Smith",
   "email": "jane@example.com",
-  "phone": "+1234567890",
+  "phone": "+12025551235",
   "languageId": "560e8400..."
 }
 
@@ -544,7 +544,7 @@ Location: /v1/runners/550e8400...
   "coachId": "660e8400...",
   "name": "Jane Smith",
   "email": "jane@example.com",
-  "phone": "+1234567890",
+  "phone": "+12025551235",
   "languageId": "560e8400..."
 }
 ```
@@ -557,7 +557,7 @@ PATCH /runners/550e8400...
 Content-Type: application/json
 
 {
-  "phone": "+9876543210"
+  "phone": "+12025559999"
 }
 
 → 200 OK (returns full Runner with updated phone)
