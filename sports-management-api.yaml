@@ -66,62 +66,17 @@ paths:
         Use Accept header to control the representation of each runner in the list.
       operationId: listRunners
       parameters:
-        - name: page
-          in: query
-          description: Page number (1-indexed)
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          description: Number of items per page
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
         - name: coachId
           in: query
           description: Filter runners by coach ID
           schema:
             type: string
             format: uuid
-        - name: search
-          in: query
-          description: Search in name, email, phone fields
-          schema:
-            type: string
-            minLength: 2
-        - name: sort
-          in: query
-          description: |
-            Comma-separated list of fields to sort by.
-            Prefix field with `-` for descending order.
-            Examples:
-            - `name` - sort by name ascending
-            - `-createdAt` - sort by createdAt descending (newest first)
-            - `name,-createdAt` - sort by name ascending, then createdAt descending
-          schema:
-            type: string
-            pattern: '^-?[a-zA-Z][a-zA-Z0-9]*(,-?[a-zA-Z][a-zA-Z0-9]*)*$'
-            example: "name,-createdAt"
-            default: "-createdAt"
-        - name: Accept
-          in: header
-          description: |
-            Media type for response representation:
-            - `application/json` - Base normalized representation (default)
-            - `application/vnd.api.runner.list+json` - List with denormalized data (includes coachName)
-            - `application/vnd.api.runner.lookup+json` - Lookup (id + name only)
-          required: false
-          schema:
-            type: string
-            enum:
-              - application/json
-              - application/vnd.api.runner.list+json
-              - application/vnd.api.runner.lookup+json
-            default: application/json
+        - $ref: '#/components/parameters/SearchParam'
+        - $ref: '#/components/parameters/SortParam'
+        - $ref: '#/components/parameters/AcceptRunnerList'
       responses:
         '200':
           description: Successful response with runners list
@@ -288,26 +243,7 @@ paths:
         - **detail**: Profile cards, forms, user-facing displays
       operationId: getRunnerById
       parameters:
-        - name: Accept
-          in: header
-          description: |
-            Media type for response representation:
-            - `application/json` - Base normalized representation (default)
-            - `application/vnd.api.runner.detail+json` - Enriched with denormalized relations
-          required: false
-          schema:
-            type: string
-            enum:
-              - application/json
-              - application/vnd.api.runner.detail+json
-            default: application/json
-          examples:
-            base:
-              summary: Request base representation
-              value: application/json
-            detail:
-              summary: Request detail representation
-              value: application/vnd.api.runner.detail+json
+        - $ref: '#/components/parameters/AcceptRunnerDetail'
       
       responses:
         '200':
@@ -507,30 +443,9 @@ paths:
           schema:
             type: string
             format: uuid
-        - name: page
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 100
-            default: 20
-        - name: Accept
-          in: header
-          description: Media type for response representation
-          required: false
-          schema:
-            type: string
-            enum:
-              - application/json
-              - application/vnd.api.runner.list+json
-              - application/vnd.api.runner.lookup+json
-            default: application/json
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/AcceptRunnerList'
       responses:
         '200':
           description: Successful response
@@ -918,6 +833,85 @@ components:
           description: Human-readable error message with details
           example: "Request validation failed"
 
+  # ==========================================
+  # REUSABLE PARAMETERS
+  # ==========================================
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-indexed)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    LimitParam:
+      name: limit
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    SearchParam:
+      name: search
+      in: query
+      description: Search in name, email, phone fields
+      schema:
+        type: string
+        minLength: 2
+
+    SortParam:
+      name: sort
+      in: query
+      description: |
+        Comma-separated list of fields to sort by.
+        Prefix field with `-` for descending order.
+        Examples:
+        - `name` - sort by name ascending
+        - `-createdAt` - sort by createdAt descending (newest first)
+        - `name,-createdAt` - sort by name ascending, then createdAt descending
+      schema:
+        type: string
+        pattern: '^-?[a-zA-Z][a-zA-Z0-9]*(,-?[a-zA-Z][a-zA-Z0-9]*)*$'
+        example: "name,-createdAt"
+        default: "-createdAt"
+
+    AcceptRunnerList:
+      name: Accept
+      in: header
+      description: |
+        Media type for response representation:
+        - `application/json` - Base normalized representation (default)
+        - `application/vnd.api.runner.list+json` - List with denormalized data (includes coachName)
+        - `application/vnd.api.runner.lookup+json` - Lookup (id + name only)
+      required: false
+      schema:
+        type: string
+        enum:
+          - application/json
+          - application/vnd.api.runner.list+json
+          - application/vnd.api.runner.lookup+json
+        default: application/json
+
+    AcceptRunnerDetail:
+      name: Accept
+      in: header
+      description: |
+        Media type for response representation:
+        - `application/json` - Base normalized representation (default)
+        - `application/vnd.api.runner.detail+json` - Enriched with denormalized relations
+      required: false
+      schema:
+        type: string
+        enum:
+          - application/json
+          - application/vnd.api.runner.detail+json
+        default: application/json
 
   # ==========================================
   # REUSABLE RESPONSES
