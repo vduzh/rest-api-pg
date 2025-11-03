@@ -275,7 +275,13 @@ interface RunnerPatch {
 **Example**: `GET /runners` - List of runners
 - Pagination: `page`, `limit`
 - Filtering: `coachId`, `search`
-- Sorting: `sort` (name_asc, name_desc, created_asc, created_desc)
+- Sorting: `sort` - comma-separated fields, prefix with `-` for descending
+  - Format: `sort=field1,-field2,field3`
+  - Examples:
+    - `sort=name` (ascending)
+    - `sort=-createdAt` (descending)
+    - `sort=name,-createdAt` (multiple fields)
+  - Default: `-createdAt` (newest first)
 - Accept header determines representation:
   - `application/vnd.api.{resource}.list+json` → `RunnerListItem[]` (for tables, with denormalization)
   - `application/vnd.api.{resource}.lookup+json` → `RunnerLookup[]` (for dropdown)
@@ -466,16 +472,17 @@ if (hasNextPage) {
 1. **Versioning**: `/v1/` in URL for future breaking changes
 2. **Pagination**: mandatory for all list endpoints, cursor-based without COUNT for performance
 3. **Filtering**: via query parameters (REST standard)
-4. **Validation**: at schema level (formats, patterns, length, regex)
-5. **Errors**: simple uniform format with single message field
-6. **Security**: JWT for all requests, readonly fields protected
-7. **REST semantics**: proper HTTP method usage
-8. **Readonly fields**: `id` cannot be changed by client
-9. **Location header**: when creating resource (201) points to new resource
-10. **Nested resources**: `/coaches/{id}/runners` for related data
-11. **Content negotiation**: Accept header for different representations
-12. **Default representation**: `application/json` → base normalized representation
-13. **Performance-first**: no expensive COUNT queries on large datasets
+4. **Sorting**: flexible multi-field sorting with `sort=field1,-field2` format (JSON:API standard)
+5. **Validation**: at schema level (formats, patterns, length, regex)
+6. **Errors**: simple uniform format with single message field
+7. **Security**: JWT for all requests, readonly fields protected
+8. **REST semantics**: proper HTTP method usage
+9. **Readonly fields**: `id` cannot be changed by client
+10. **Location header**: when creating resource (201) points to new resource
+11. **Nested resources**: `/coaches/{id}/runners` for related data
+12. **Content negotiation**: Accept header for different representations
+13. **Default representation**: `application/json` → base normalized representation
+14. **Performance-first**: no expensive COUNT queries on large datasets
 
 ---
 
@@ -490,12 +497,12 @@ Returns only `id`, `name` - minimum data for selection.
 
 ---
 
-### Scenario 2: Runners table with coach name
+### Scenario 2: Runners table with coach name, sorted by name
 ```http
-GET /runners?page=1&limit=20
+GET /runners?page=1&limit=20&sort=name
 Accept: application/vnd.api.runner.list+json
 ```
-Returns denormalized data including `coachName` - without additional client requests.
+Returns denormalized data including `coachName`, sorted alphabetically by name - without additional client requests.
 
 ---
 

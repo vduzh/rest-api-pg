@@ -24,13 +24,21 @@ info:
     - **{Resource}Update** - Request model for full replacement (PUT)
     - **{Resource}Patch** - Request model for partial update (PATCH)
     
+    ### Sorting Strategy
+    **Flexible multi-field sorting with JSON:API format:**
+    - Use `sort` query parameter with comma-separated fields
+    - Prefix field with `-` for descending order
+    - Examples: `sort=name`, `sort=-createdAt`, `sort=name,-createdAt`
+    - Default: `-createdAt` (newest first)
+    - Benefits: Multiple fields, clear syntax, industry standard (JSON:API, GitHub API)
+
     ### HTTP Method Semantics
     - **GET** - Retrieve (idempotent, safe)
     - **POST** - Create (non-idempotent, returns 201 + Location header)
     - **PUT** - Full replacement (idempotent, requires all fields)
     - **PATCH** - Partial update (non-idempotent, optional fields)
     - **DELETE** - Remove (idempotent, returns 204)
-    
+
   contact:
     name: API Support
     email: api@example.com
@@ -87,11 +95,18 @@ paths:
             minLength: 2
         - name: sort
           in: query
-          description: Sort field and direction
+          description: |
+            Comma-separated list of fields to sort by.
+            Prefix field with `-` for descending order.
+            Examples:
+            - `name` - sort by name ascending
+            - `-createdAt` - sort by createdAt descending (newest first)
+            - `name,-createdAt` - sort by name ascending, then createdAt descending
           schema:
             type: string
-            enum: [name_asc, name_desc, created_asc, created_desc]
-            default: created_desc
+            pattern: '^-?[a-zA-Z][a-zA-Z0-9]*(,-?[a-zA-Z][a-zA-Z0-9]*)*$'
+            example: "name,-createdAt"
+            default: "-createdAt"
         - name: Accept
           in: header
           description: |
