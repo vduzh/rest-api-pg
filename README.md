@@ -434,7 +434,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 {
   "sub": "user-uuid",           // User ID (or Runner ID for runner role)
   "email": "user@example.com",  // User email
-  "role": "admin",              // Role: "runner", "user", or "admin"
+  "role": "admin",              // Role: "runner", "coach", or "admin"
   "iat": 1609459200,            // Issued at
   "exp": 1609545600             // Expiration
 }
@@ -444,13 +444,13 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Roles**:
 - `runner` - Runner with access to own profile only
-- `user` - Regular user (e.g., coach) with standard permissions
+- `coach` - Coach with standard permissions to manage runners
 - `admin` - Administrator with full permissions
 
 **Permissions by role**:
 
-| Operation | Endpoint Example | runner | user | admin |
-|-----------|-----------------|--------|------|-------|
+| Operation | Endpoint Example | runner | coach | admin |
+|-----------|-----------------|--------|-------|-------|
 | GET /runners/me | `GET /runners/me` | ✅ | ❌ | ❌ |
 | GET (list) | `GET /runners` | ❌ | ✅ | ✅ |
 | GET (by ID) | `GET /runners/{id}` | ❌ | ✅ | ✅ |
@@ -463,11 +463,11 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Key rules**:
 - **runner** role: Can only access and modify own profile via `/runners/me`
-- **user** role: Can manage all runners (for coaches managing their athletes)
+- **coach** role: Can manage all runners (coaches managing their athletes)
 - **admin** role: Full access including DELETE operations
 
 **DELETE operations** require `admin` role:
-- ❌ User with `role: "runner"` or `role: "user"` → 403 Forbidden
+- ❌ User with `role: "runner"` or `role: "coach"` → 403 Forbidden
 - ✅ User with `role: "admin"` → 204 No Content (success)
 
 ### Security Rules

@@ -1080,16 +1080,16 @@ components:
 
         **Roles:**
         - `runner` - Runner with access to own profile only via `/runners/me`
-        - `user` - Regular user (e.g., coach) with standard permissions
+        - `coach` - Coach with standard permissions to manage runners
         - `admin` - Administrator with full permissions
 
         **Role-Based Permissions:**
         - All endpoints require authentication
         - **runner** role: Can only access `/runners/me` (own profile)
-        - **user** role: Can GET, POST, PUT, PATCH on all runners (for coaches)
+        - **coach** role: Can GET, POST, PUT, PATCH on all runners (coaches managing their athletes)
         - **admin** role: Full access including DELETE operations
         - DELETE operations: require `admin` role only
-          - User with `role: "runner"` or `role: "user"` → 403 Forbidden
+          - User with `role: "runner"` or `role: "coach"` → 403 Forbidden
           - User with `role: "admin"` → 204 No Content (success)
 
         **Error Responses:**
