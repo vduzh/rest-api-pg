@@ -50,12 +50,112 @@ servers:
     description: Staging server
 
 tags:
+  - name: Authentication
+    description: Authentication and token management
   - name: Runners
     description: Operations related to runner management
   - name: Coaches
     description: Operations related to coach management
 
 paths:
+  # ==========================================
+  # AUTHENTICATION ENDPOINTS
+  # ==========================================
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user
+      description: |
+        Authenticate a user with email and password.
+        Returns a JWT access token and optionally a refresh token.
+
+        **Supported roles**: `runner`, `coach`, `admin`
+
+        The access token should be included in subsequent requests via the Authorization header:
+        ```
+        Authorization: Bearer <accessToken>
+        ```
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDEiLCJlbWFpbCI6ImNvYWNoQGV4YW1wbGUuY29tIiwicm9sZSI6ImNvYWNoIiwiaWF0IjoxNjA5NDU5MjAwLCJleHAiOjE2MDk1NDU2MDB9.abc123"
+                tokenType: "Bearer"
+                expiresIn: 86400
+                refreshToken: "refresh_token_abc123xyz"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Authentication failed - invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid email or password"
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+      security: []
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: |
+        Obtain a new access token using a refresh token.
+        This allows users to maintain their session without re-entering credentials.
+
+        **Best practice**: Request a new token before the current one expires
+        (e.g., 5-10 minutes before expiration).
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              example:
+                accessToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.newtoken.xyz"
+                tokenType: "Bearer"
+                expiresIn: 86400
+                refreshToken: "new_refresh_token_xyz"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid or expired refresh token"
+      security: []
+
+  # ==========================================
+  # RUNNER ENDPOINTS
+  # ==========================================
+
   /runners:
     get:
       tags:
@@ -875,6 +975,72 @@ components:
           format: uuid
           description: ID of the runner's language
           example: "770e8400-e29b-41d4-a716-446655440002"
+
+    # ==========================================
+    # AUTHENTICATION SCHEMAS
+    # ==========================================
+
+    AuthRequest:
+      type: object
+      description: Authentication request with email and password
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User email address
+          example: "coach@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: User password (minimum 8 characters)
+          example: "SecurePassword123"
+
+    AuthResponse:
+      type: object
+      description: |
+        Authentication response with JWT token.
+
+        The `expiresIn` field is optional but follows OAuth 2.0 standard (RFC 6749).
+        Although expiration time is present in JWT `exp` claim, this field provides
+        convenience for clients without needing to decode the token.
+      required:
+        - accessToken
+        - tokenType
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token for API authentication
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDEiLCJlbWFpbCI6ImNvYWNoQGV4YW1wbGUuY29tIiwicm9sZSI6ImNvYWNoIiwiaWF0IjoxNjA5NDU5MjAwLCJleHAiOjE2MDk1NDU2MDB9.abc123xyz"
+        tokenType:
+          type: string
+          description: Token type (always "Bearer")
+          enum:
+            - Bearer
+          example: "Bearer"
+        expiresIn:
+          type: integer
+          format: int32
+          description: Token expiration time in seconds (OAuth 2.0 standard)
+          example: 86400
+        refreshToken:
+          type: string
+          description: Refresh token for obtaining new access tokens (optional, if refresh flow is implemented)
+          example: "refresh_abc123xyz"
+
+    RefreshRequest:
+      type: object
+      description: Request to refresh access token
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: Refresh token obtained from login response
+          example: "refresh_abc123xyz"
 
     # ==========================================
     # UTILITY SCHEMAS

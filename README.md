@@ -422,6 +422,83 @@ interface RunnerPatch {
 
 ## 🔐 Authentication & Authorization
 
+### Authentication Flow
+
+#### 1. Login - Obtain Access Token
+
+**Endpoint**: `POST /auth/login`
+
+**Request**:
+```json
+{
+  "email": "coach@example.com",
+  "password": "SecurePassword123"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "tokenType": "Bearer",
+  "expiresIn": 86400,
+  "refreshToken": "refresh_token_abc123xyz"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Invalid email or password
+- 422 Unprocessable Entity: Validation failed (invalid email format, password too short)
+
+#### 2. Use Access Token for API Requests
+
+Include the access token in the `Authorization` header for all subsequent API requests:
+
+```http
+GET /runners
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### 3. Refresh Token - Extend Session
+
+When the access token is about to expire, use the refresh token to obtain a new access token:
+
+**Endpoint**: `POST /auth/refresh`
+
+**Request**:
+```json
+{
+  "refreshToken": "refresh_token_abc123xyz"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new_token...",
+  "tokenType": "Bearer",
+  "expiresIn": 86400,
+  "refreshToken": "new_refresh_token_xyz"
+}
+```
+
+**Best Practice**: Request a new token 5-10 minutes before the current one expires to avoid service interruption.
+
+**Error Responses**:
+- 401 Unauthorized: Invalid or expired refresh token
+
+#### Token Management
+
+**Access Token**:
+- Short-lived (typically 24 hours, as indicated by `expiresIn`)
+- Used for authenticating API requests
+- Contains user information and role in JWT payload
+
+**Refresh Token**:
+- Long-lived (typically 7-30 days)
+- Used to obtain new access tokens without re-entering credentials
+- Should be stored securely (e.g., httpOnly cookie or secure storage)
+
 ### JWT Bearer Token
 
 ```http
