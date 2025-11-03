@@ -40,7 +40,7 @@ application/vnd.api.{resource}.{representation}+json
 application/json                              # base normalized representation (default)
 application/vnd.api.{resource}.list+json      # list representation (tables, denormalization)
 application/vnd.api.{resource}.lookup+json    # for dropdown/select (id + name)
-application/vnd.api.{resource}.detail+json    # extended without readonly fields (for single resource only)
+application/vnd.api.{resource}.detail+json    # enriched with denormalized relations (for single resource only)
 ```
 
 ### Examples for different resources:
@@ -146,7 +146,7 @@ interface RunnerLookup {
 
 ---
 
-#### 4. `{Resource}Detail` - Extended without system fields
+#### 4. `{Resource}Detail` - Enriched with denormalized relations
 **Media Type**: `application/vnd.api.{resource}.detail+json`
 
 **Example for RunnerDetail**:
@@ -165,9 +165,10 @@ interface RunnerDetail {
 ```
 
 **Use cases**:
-- Profile cards
-- Edit forms
-- User-facing interfaces where system fields are not needed
+- Profile cards and detail views
+- Edit forms with related entity names pre-loaded
+- Rich UI displays without additional API calls
+- Combines base entity with denormalized related data
 
 ---
 
@@ -250,7 +251,7 @@ interface RunnerPatch {
 | `{Resource}` | GET | Base reading | ✅ Yes |
 | `{Resource}ListItem` | GET | Lists/tables | ✅ Yes |
 | `{Resource}Lookup` | GET | Dropdown (id+name) | ✅ Yes |
-| `{Resource}Detail` | GET | Extended reading | ✅ Yes |
+| `{Resource}Detail` | GET | Enriched with relations | ✅ Yes |
 | `{Resource}Create` | POST | Creation | ✅ Yes (except optional) |
 | `{Resource}Update` | PUT | Full replacement | ✅ Yes |
 | `{Resource}Patch` | PATCH | Partial update | ❌ All optional |

@@ -12,14 +12,14 @@ info:
     - `application/json` - Base normalized representation (default)
     - `application/vnd.api.{resource}.list+json` - List representation with denormalized data (for tables)
     - `application/vnd.api.{resource}.lookup+json` - Lookup representation (id + name for dropdowns)
-    - `application/vnd.api.{resource}.detail+json` - Extended data without readonly fields
+    - `application/vnd.api.{resource}.detail+json` - Enriched with denormalized relations
     
     ### Schema Naming Conventions
     Follows industry-standard DTO naming patterns:
     - **{Resource}** - Base normalized response (GET with application/json)
     - **{Resource}ListItem** - List response with denormalized data (GET with list Accept)
     - **{Resource}Lookup** - Lookup response for dropdowns (GET with lookup Accept)
-    - **{Resource}Detail** - Extended response without readonly fields (GET with detail Accept)
+    - **{Resource}Detail** - Enriched response with denormalized relations (GET with detail Accept)
     - **{Resource}Create** - Request model for resource creation (POST)
     - **{Resource}Update** - Request model for full replacement (PUT)
     - **{Resource}Patch** - Request model for partial update (PATCH)
@@ -293,7 +293,7 @@ paths:
           description: |
             Media type for response representation:
             - `application/json` - Base normalized representation (default)
-            - `application/vnd.api.runner.detail+json` - Extended without readonly fields
+            - `application/vnd.api.runner.detail+json` - Enriched with denormalized relations
           required: false
           schema:
             type: string
@@ -699,15 +699,15 @@ components:
     RunnerDetail:
       type: object
       description: |
-        **Extended representation** with denormalized related data.
-        Includes denormalized coach and language names for richer UI display.
+        **Enriched representation** with denormalized related data.
+        Contains all base entity fields plus denormalized names from referenced entities.
         Used with: `application/vnd.api.runner.detail+json`
 
         Use cases:
-        - Profile cards and displays
-        - Detail views with related entity names
-        - User-facing interfaces where denormalized data improves UX
-        - Reduces client-side requests for related entities
+        - Profile cards and detail views
+        - Edit forms with related entity names pre-loaded
+        - Rich UI displays without additional API calls
+        - Combines base entity with denormalized related data (coach, language names)
       required:
         - id
         - name
