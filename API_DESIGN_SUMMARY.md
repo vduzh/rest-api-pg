@@ -329,9 +329,12 @@ interface RunnerPatch {
 
 ### 6. `DELETE /{resource}/{id}` - Deletion
 **Example**: `DELETE /runners/{runnerId}` - Delete runner
+- **Authorization**: Requires `admin` role
 - **Response**: 204 No Content (success, empty body)
 - **Semantics**: Idempotent
-- **Errors**: 
+- **Errors**:
+  - 401 (missing/invalid token)
+  - 403 (valid token but insufficient permissions - user role)
   - 404 (not found)
   - 409 (has dependencies, e.g., related records)
 
@@ -386,6 +389,7 @@ interface RunnerPatch {
 | 204 | No Content | DELETE successful (empty body) |
 | 400 | Bad Request | Invalid JSON, wrong parameters |
 | 401 | Unauthorized | Missing/invalid JWT token |
+| 403 | Forbidden | Valid token but insufficient permissions (e.g., non-admin trying to DELETE) |
 | 404 | Not Found | Resource not found |
 | 406 | Not Acceptable | Unsupported Accept header |
 | 409 | Conflict | Email duplicate, cannot delete (dependencies) |
@@ -394,17 +398,55 @@ interface RunnerPatch {
 
 ---
 
-## 🔐 Authentication
+## 🔐 Authentication & Authorization
 
-**Method**: JWT Bearer token
+### JWT Bearer Token
 
 ```http
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-- ✅ All endpoints protected
+### JWT Payload Structure
+
+```json
+{
+  "sub": "user-uuid",           // User ID
+  "email": "user@example.com",  // User email
+  "role": "user",               // Role: "user" or "admin"
+  "iat": 1609459200,            // Issued at
+  "exp": 1609545600             // Expiration
+}
+```
+
+### Role-Based Access Control (RBAC)
+
+**Roles**:
+- `user` - Regular user with standard permissions
+- `admin` - Administrator with full permissions
+
+**Permissions by role**:
+
+| Operation | Endpoint Example | user | admin |
+|-----------|-----------------|------|-------|
+| GET (list) | `GET /runners` | ✅ | ✅ |
+| GET (by ID) | `GET /runners/{id}` | ✅ | ✅ |
+| POST | `POST /runners` | ✅ | ✅ |
+| PUT | `PUT /runners/{id}` | ✅ | ✅ |
+| PATCH | `PATCH /runners/{id}` | ✅ | ✅ |
+| DELETE | `DELETE /runners/{id}` | ❌ | ✅ |
+
+**DELETE operations** require `admin` role:
+- ❌ User with `role: "user"` → 403 Forbidden
+- ✅ User with `role: "admin"` → 204 No Content (success)
+
+### Security Rules
+
+- ✅ All endpoints require authentication
+- ✅ Token validated by middleware on every request
+- ✅ Role extracted from JWT and checked for DELETE operations
 - ❌ Without token → 401 Unauthorized
-- Token validated by middleware on every request
+- ❌ Invalid/expired token → 401 Unauthorized
+- ❌ DELETE without admin role → 403 Forbidden
 
 ---
 

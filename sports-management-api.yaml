@@ -459,9 +459,13 @@ paths:
       summary: Delete runner
       description: |
         Permanently delete an runner profile.
-        Returns 204 No Content on success.
+
+        **Authorization**: Requires `admin` role in JWT token.
+        - User with `role: "user"` will receive 403 Forbidden
+        - User with `role: "admin"` will succeed with 204 No Content
+
         Returns 409 Conflict if runner has dependencies (e.g., active training sessions).
-        
+
         **Note**: This is idempotent - deleting same runner twice returns 404 second time.
       operationId: deleteRunner
       responses:
@@ -469,6 +473,8 @@ paths:
           description: Runner deleted successfully (no content)
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -936,6 +942,15 @@ components:
           example:
             message: "Authentication required"
 
+    Forbidden:
+      description: Forbidden - valid token but insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: "Insufficient permissions. Admin role required."
+
     NotFound:
       description: Resource not found
       content:
@@ -991,13 +1006,36 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: |
-        JWT Bearer token authentication.
-        
-        Include the token in the Authorization header:
+        JWT Bearer token authentication with role-based access control (RBAC).
+
+        **Include the token in the Authorization header:**
         ```
         Authorization: Bearer <your-jwt-token>
         ```
-        
-        All endpoints require authentication.
-        Token should contain user identity and permissions.
+
+        **JWT Payload Structure:**
+        ```json
+        {
+          "sub": "user-uuid",
+          "email": "user@example.com",
+          "role": "user",
+          "iat": 1609459200,
+          "exp": 1609545600
+        }
+        ```
+
+        **Roles:**
+        - `user` - Regular user with standard permissions
+        - `admin` - Administrator with full permissions
+
+        **Role-Based Permissions:**
+        - All endpoints require authentication
+        - GET, POST, PUT, PATCH operations: accessible to both `user` and `admin`
+        - DELETE operations: require `admin` role only
+          - User with `role: "user"` → 403 Forbidden
+          - User with `role: "admin"` → 204 No Content (success)
+
+        **Error Responses:**
+        - Missing/invalid token → 401 Unauthorized
+        - Valid token but insufficient permissions → 403 Forbidden
 
