@@ -26,6 +26,12 @@ REST API design for sports management system using content negotiation via Accep
 - Separate endpoints `/runners/{id}/detail` - violates "one resource = one URL" principle
 - Accept header was chosen as the more correct approach
 
+**Implementation note**:
+- In OpenAPI 3.x, `Accept` header is **NOT** defined as a parameter
+- Instead, it's defined implicitly through `responses.content` keys
+- Swagger UI automatically generates a "Media type" dropdown in the Responses section
+- See [Content Negotiation](#-content-negotiation) section for detailed usage
+
 ---
 
 ## 📐 Media Types Convention
@@ -69,6 +75,80 @@ application/vnd.api.{resource}.{representation}+json
 - Standard for vendor-specific APIs (used by GitHub, Stripe, Heroku)
 - Suitable for proprietary API products
 - IANA registerable (optional)
+
+---
+
+## 🔄 Content Negotiation
+
+### How to Use in API Requests
+
+Use the `Accept` header to specify which representation you want to receive:
+
+```http
+GET /runners
+Accept: application/vnd.api.runner.list+json
+Authorization: Bearer <token>
+```
+
+**Response**: Returns `RunnerListItem[]` with denormalized data (includes `coachName`)
+
+```http
+GET /runners/{id}
+Accept: application/vnd.api.runner.detail+json
+Authorization: Bearer <token>
+```
+
+**Response**: Returns `RunnerDetail` with enriched denormalized relations
+
+### Default Behavior
+
+If no `Accept` header is provided, the API returns the **base representation** (`application/json`):
+
+```http
+GET /runners
+Authorization: Bearer <token>
+```
+
+**Response**: Returns `Runner[]` (base normalized representation)
+
+### Swagger UI Usage
+
+**Important for Developers**: In the OpenAPI specification, the `Accept` header is **NOT listed as a parameter**. Instead, it is defined implicitly through the `content` keys in the `responses` section.
+
+**In Swagger UI**:
+
+1. Open any GET endpoint (e.g., `GET /runners`)
+2. In the **Responses** section, you'll see a **"Media type" dropdown** next to the 200 response
+3. Select the desired media type from the dropdown:
+   - `application/json` (default)
+   - `application/vnd.api.runner.list+json`
+   - `application/vnd.api.runner.lookup+json`
+4. Click **"Execute"**
+5. Swagger UI will **automatically add** the `Accept: <selected-media-type>` header to the request
+
+**Example**:
+
+```
+Responses
+  200 Successful response
+  [Media type: application/vnd.api.runner.list+json ▼]
+
+  Example Value:
+  [
+    {
+      "id": "...",
+      "name": "John Doe",
+      "coachName": "Coach Smith"  ← denormalized field
+    }
+  ]
+```
+
+**Why this approach?**
+
+- ✅ **OpenAPI 3.x compliant**: Content negotiation is a first-class citizen
+- ✅ **Clear documentation**: Each media type has its own schema and examples
+- ✅ **Better tooling**: Code generators understand content negotiation
+- ✅ **HTTP semantics**: `Accept` is not a "parameter" but part of HTTP content negotiation
 
 ---
 

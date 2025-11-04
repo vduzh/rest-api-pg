@@ -163,7 +163,11 @@ paths:
       summary: List all runners
       description: |
         Retrieve a paginated list of runners with optional filtering and sorting.
-        Use Accept header to control the representation of each runner in the list.
+
+        **Content Negotiation**: Use the `Accept` header to control response format:
+        - `application/json` - Base normalized representation (default)
+        - `application/vnd.api.runner.list+json` - List with denormalized data (includes coachName)
+        - `application/vnd.api.runner.lookup+json` - Lookup (id + name only)
       operationId: listRunners
       parameters:
         - $ref: '#/components/parameters/PageParam'
@@ -176,7 +180,6 @@ paths:
             format: uuid
         - $ref: '#/components/parameters/SearchParam'
         - $ref: '#/components/parameters/SortParam'
-        - $ref: '#/components/parameters/AcceptRunnerList'
       responses:
         '200':
           description: Successful response with runners list
@@ -328,12 +331,10 @@ paths:
 
         **Authorization**: Requires `runner` role.
 
-        Use Accept header to control the representation:
-        - **base** (application/json, default): Complete data including coachId
-        - **detail**: Enriched with denormalized relations (e.g., coachName)
+        **Content Negotiation**: Use the `Accept` header to control response format:
+        - `application/json` - Base normalized representation (default)
+        - `application/vnd.api.runner.detail+json` - Enriched with denormalized relations
       operationId: getCurrentRunner
-      parameters:
-        - $ref: '#/components/parameters/AcceptRunnerDetail'
       responses:
         '200':
           description: Current runner profile
@@ -393,18 +394,16 @@ paths:
       summary: Get runner by ID
       description: |
         Retrieve information about a specific runner.
-        Use Accept header to control the representation:
-        
-        - **base** (application/json, default): Complete data including coachId
-        - **detail**: Extended data without readonly fields
-        
-        Useful for different UI contexts:
+
+        **Content Negotiation**: Use the `Accept` header to control response format:
+        - `application/json` - Base normalized representation (default)
+        - `application/vnd.api.runner.detail+json` - Enriched with denormalized relations
+
+        **Useful for different UI contexts**:
         - **base**: Admin panels, auditing, debugging, data export
         - **detail**: Profile cards, forms, user-facing displays
       operationId: getRunnerById
-      parameters:
-        - $ref: '#/components/parameters/AcceptRunnerDetail'
-      
+
       responses:
         '200':
           description: Runner found
@@ -597,7 +596,10 @@ paths:
         This is equivalent to `GET /runners?coachId={coachId}` but provides
         a more intuitive navigation path in the context of coach management.
 
-        Supports pagination and same Accept header variations as /runners endpoint.
+        **Content Negotiation**: Use the `Accept` header to control response format:
+        - `application/json` - Base normalized representation (default)
+        - `application/vnd.api.runner.list+json` - List with denormalized data (includes coachName)
+        - `application/vnd.api.runner.lookup+json` - Lookup (id + name only)
       operationId: getRunnersByCoach
       parameters:
         - name: coachId
@@ -609,7 +611,6 @@ paths:
             format: uuid
         - $ref: '#/components/parameters/PageParam'
         - $ref: '#/components/parameters/LimitParam'
-        - $ref: '#/components/parameters/AcceptRunnerList'
       responses:
         '200':
           description: Successful response
@@ -1110,38 +1111,6 @@ components:
         pattern: '^-?[a-zA-Z][a-zA-Z0-9]*(,-?[a-zA-Z][a-zA-Z0-9]*)*$'
         example: "name,-createdAt"
         default: "-createdAt"
-
-    AcceptRunnerList:
-      name: Accept
-      in: header
-      description: |
-        Media type for response representation:
-        - `application/json` - Base normalized representation (default)
-        - `application/vnd.api.runner.list+json` - List with denormalized data (includes coachName)
-        - `application/vnd.api.runner.lookup+json` - Lookup (id + name only)
-      required: false
-      schema:
-        type: string
-        enum:
-          - application/json
-          - application/vnd.api.runner.list+json
-          - application/vnd.api.runner.lookup+json
-        default: application/json
-
-    AcceptRunnerDetail:
-      name: Accept
-      in: header
-      description: |
-        Media type for response representation:
-        - `application/json` - Base normalized representation (default)
-        - `application/vnd.api.runner.detail+json` - Enriched with denormalized relations
-      required: false
-      schema:
-        type: string
-        enum:
-          - application/json
-          - application/vnd.api.runner.detail+json
-        default: application/json
 
   # ==========================================
   # REUSABLE RESPONSES
