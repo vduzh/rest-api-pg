@@ -44,9 +44,9 @@ info:
     email: api@example.com
 
 servers:
-  - url: https://api.example.com/v1
+  - url: https://api.example.com/api/v1
     description: Production server
-  - url: https://api-staging.example.com/v1
+  - url: https://api-staging.example.com/api/v1
     description: Staging server
 
 tags:
@@ -295,7 +295,7 @@ paths:
               schema:
                 type: string
                 format: uri
-                example: "/v1/runners/550e8400-e29b-41d4-a716-446655440002"
+                example: "/api/v1/runners/550e8400-e29b-41d4-a716-446655440002"
           content:
             application/json:
               schema:

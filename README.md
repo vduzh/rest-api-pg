@@ -700,7 +700,7 @@ if (hasNextPage) {
 
 ## 💡 Best Practices implemented in API
 
-1. **Versioning**: `/v1/` in URL for future breaking changes
+1. **Versioning**: `/api/v1/` in URL for future breaking changes
 2. **Pagination**: mandatory for all list endpoints, cursor-based without COUNT for performance
 3. **Filtering**: via query parameters (REST standard)
 4. **Sorting**: flexible multi-field sorting with `sort=field1,-field2` format (JSON:API standard)
@@ -769,7 +769,7 @@ Content-Type: application/json
 }
 
 → 201 Created
-Location: /v1/runners/550e8400...
+Location: /api/v1/runners/550e8400...
 {
   "id": "550e8400...",  // generated
   "coachId": "660e8400...",
@@ -811,7 +811,7 @@ Content-Type: application/json
 - ✅ Nested resources for related data
 - ✅ Location header when creating resource
 - ✅ Readonly fields protected from modification
-- ✅ API versioning (/v1/)
+- ✅ API versioning (/api/v1/)
 - ✅ Performance-first approach (no expensive aggregations)
 
 ---
