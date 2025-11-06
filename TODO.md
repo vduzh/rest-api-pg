@@ -44,3 +44,8 @@ authService.register() → AuthResponse { accessToken, tokenType, ... }
             schema:
               $ref: '#/components/schemas/AuthResponse'  ← Returns tokens!
 ```
+
+
+## Search size
+
+There is no reason to set min size. Max might be reasable
